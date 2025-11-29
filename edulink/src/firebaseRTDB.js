@@ -1,31 +1,15 @@
 import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-} from "firebase/auth";
-import {
-  getDatabase,
-  ref,
-  set,
-  get,
-  onValue,
-  update,
-  push,
-  child,
-} from "firebase/database";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getDatabase, ref, set, get, onValue, update, push, child, remove } from "firebase/database"; 
 import { firebaseConfig } from "./firebaseConfig";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 
-// Create or update user profile
+// Helpers
 export async function createUserProfile(uid, profile) {
-  const userRef = ref(db, "users/" + uid);
-  await set(userRef, profile);
+  await set(ref(db, "users/" + uid), profile);
 }
 
 export async function getUserProfile(uid) {
@@ -47,4 +31,4 @@ export async function logout() {
   return signOut(auth);
 }
 
-export { onAuthStateChanged, ref, onValue, set, get, update, push, child };
+export { onAuthStateChanged, ref, onValue, set, get, update, push, child, remove };
