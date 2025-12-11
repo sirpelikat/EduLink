@@ -54,6 +54,7 @@ export default function Reports() {
   } else {
     viewList = students; // Admin sees all
   }
+  
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
