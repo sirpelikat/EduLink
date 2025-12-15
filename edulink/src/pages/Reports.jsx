@@ -37,6 +37,13 @@ export default function Reports() {
   }
 
   const handleEditChange = (id, field, value) => {
+    const num = Number(value);
+
+    if (num < 0 || num > 100) {
+      alert("Invalid number");
+      return;
+    }
+
     setEdits(prev => ({
       ...prev,
       [id]: { ...prev[id], [field]: Number(value) }
@@ -80,7 +87,12 @@ export default function Reports() {
               return (
                 <tr key={s.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-medium">
-                    {s.name} <br/> <span className="text-xs text-gray-400">{s.class}</span>
+                    {s.name}
+                    <br/>
+                    <span className="text-xs text-gray-400">{s.class}</span>
+                    {isEditing && (
+                      <span className="text-yellow-600 text-xs ml-2">Unsaved</span>
+                    )}
                   </td>
                   
                   {/* EDITABLE FIELDS FOR TEACHERS */}
@@ -96,8 +108,21 @@ export default function Reports() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <input type="number" className="w-16 border rounded p-1 text-center" 
-                          value={display.behaviorScore} onChange={e=>handleEditChange(s.id, 'behaviorScore', e.target.value)} />
-                      </td>
+                          value={display.behaviorScore} onChange={e=>handleEditChange(s.id, 'behaviorScore', e.target.value)
+                          }
+                        />
+
+                  {/* STATUS TEXT */}
+                      <div className="text-xs mt-1 font-semibold">
+                        {display.behaviorScore >= 75 ? (
+                          <span className="text-green-600">Excellent</span>
+                        ) : display.behaviorScore >= 50 ? (
+                          <span className="text-yellow-600">Good</span>
+                        ) : (
+                          <span className="text-red-600">At Risk</span>
+                        )}
+                      </div>
+                    </td>
                     </>
                   ) : (
                     // READ ONLY FOR PARENTS/ADMIN
