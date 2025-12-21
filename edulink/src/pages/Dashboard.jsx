@@ -2,239 +2,271 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { db, ref, onValue } from "../firebaseRTDB";
 import { useAuth } from "../context/AuthContext";
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid 
+} from 'recharts';
+import { 
+  Users, AlertTriangle, Calendar, CheckCircle, Megaphone, TrendingUp, ChevronLeft, ChevronRight 
+} from "lucide-react";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Slider State
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const studentsRef = ref(db, "students");
-    const unsub = onValue(studentsRef, (snapshot) => {
+    // 1. Fetch Students
+    const unsubStudents = onValue(ref(db, "students"), (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setStudents(Object.entries(data).map(([id, value]) => ({ id, ...value })));
-      } else {
-        setStudents([]);
-      }
+      setStudents(data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : []);
+    });
+
+    // 2. Fetch Announcements
+    const unsubAnnouncements = onValue(ref(db, "announcements"), (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
+      
+      // --- LOGIC: SHOW ONLY 5 MOST RECENT ---
+      // 1. Sort by ID descending (Firebase IDs are time-based, so this puts newest first)
+      // 2. Slice to keep only the first 5
+      const top5 = list.sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5);
+      
+      setAnnouncements(top5); 
       setLoading(false);
     });
-    return () => unsub();
+
+    return () => { unsubStudents(); unsubAnnouncements(); };
   }, []);
 
-  if (loading) return <div className="p-10 text-center text-gray-500">Loading dashboard...</div>;
-  if (!user) return <div className="p-10 text-center">Please sign in.</div>;
+  // --- AUTO SLIDER LOGIC ---
+  useEffect(() => {
+    if (announcements.length <= 1) return; 
+    
+    // Auto-slide every 5 seconds
+    const interval = setInterval(() => {
+      setActiveIndex((current) => (current + 1) % announcements.length);
+    }, 5000); 
 
-  // --- 1. FILTER STUDENTS BASED ON ROLE ---
+    return () => clearInterval(interval);
+  }, [announcements.length]);
+
+  const nextSlide = () => setActiveIndex((curr) => (curr + 1) % announcements.length);
+  const prevSlide = () => setActiveIndex((curr) => (curr === 0 ? announcements.length - 1 : curr - 1));
+
+  if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Loading dashboard...</div>;
+
+  // --- FILTER DATA ---
   let myStudents = [];
-  let dashboardTitle = "";
+  let title = "Dashboard";
 
   if (user.role === 'parent') {
     myStudents = students.filter(s => s.parentId === user.uid);
-    dashboardTitle = "My Children";
-  } 
-  else if (user.role === 'teacher') {
-    if (user.class) {
-      myStudents = students.filter(s => s.class === user.class);
-      dashboardTitle = `Class ${user.class} Dashboard`;
-    } else {
-      dashboardTitle = "Teacher Dashboard (No Class Assigned)";
-    }
-  } 
-  else if (user.role === 'admin') {
+    title = "My Family Overview";
+  } else if (user.role === 'teacher') {
+    myStudents = students.filter(s => s.class === user.class);
+    title = `Class ${user.class} Overview`;
+  } else {
     myStudents = students;
-    dashboardTitle = "School Admin Overview";
+    title = "School Admin Overview";
   }
 
-  // --- 2. CALCULATE QUICK STATS ---
-  const lowAttendance = myStudents.filter(s => s.attendance < 80);
-  const atRisk = myStudents.filter(s => s.grade < 50);
+  // --- GRAPH DATA PREP ---
+  const classAttendanceData = [];
+  if (user.role === 'admin') {
+    const classMap = {};
+    students.forEach(s => {
+      if (!s.class) return;
+      if (!classMap[s.class]) classMap[s.class] = { total: 0, count: 0 };
+      classMap[s.class].total += (s.attendance || 0);
+      classMap[s.class].count += 1;
+    });
+    Object.keys(classMap).forEach(cls => {
+      classAttendanceData.push({ name: cls, attendance: Math.round(classMap[cls].total / classMap[cls].count) });
+    });
+  }
+
+  const dailyAttendanceData = [
+    { day: 'Mon', present: 95 }, { day: 'Tue', present: 92 }, { day: 'Wed', present: 98 }, 
+    { day: 'Thu', present: 94 }, { day: 'Fri', present: 97 }
+  ];
+
+  const atRiskCount = myStudents.filter(s => s.grade < 50).length;
+  const avgAttendance = myStudents.length > 0 ? Math.round(myStudents.reduce((acc, s) => acc + (s.attendance||0), 0) / myStudents.length) : 0;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto space-y-8">
       
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      {/* 1. HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">{dashboardTitle}</h1>
-          <p className="text-slate-500">Welcome back, {user.name}</p>
-        </div>
-        
-        {/* Role Badge */}
-        <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wide ${
-          user.role === 'parent' ? 'bg-amber-100 text-amber-800' :
-          user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
-          'bg-purple-100 text-purple-800'
-        }`}>
-          {user.role} Portal
-        </span>
-      </div>
-
-      {/* STATS OVERVIEW (Visible to Everyone) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Students</p>
-          <p className="text-3xl font-bold text-slate-800 mt-1">{myStudents.length}</p>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Low Attendance</p>
-          <p className={`text-3xl font-bold mt-1 ${lowAttendance.length > 0 ? 'text-orange-600' : 'text-slate-800'}`}>
-            {lowAttendance.length}
+          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">{title}</h1>
+          <p className="text-slate-500 flex items-center gap-2">
+            <Calendar size={16} /> {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">At Risk (Grades)</p>
-          <p className={`text-3xl font-bold mt-1 ${atRisk.length > 0 ? 'text-red-600' : 'text-slate-800'}`}>
-            {atRisk.length}
-          </p>
+        <div className="flex gap-3">
+          {user.role === 'teacher' && (
+            <Link to="/reports" className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">
+              <CheckCircle size={18} /> Take Attendance
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* --- CONTENT AREA --- */}
-      {myStudents.length === 0 ? (
-        <div className="bg-white p-12 rounded-xl shadow-sm text-center border border-dashed border-gray-300">
-          <p className="text-gray-500 text-lg">No students found.</p>
-          {user.role === 'parent' && <p className="text-sm text-gray-400 mt-2">Contact admin if you don't see your child.</p>}
-        </div>
-      ) : (
-        <>
-          {/* PARENT VIEW: DETAILED CARDS */}
-          {user.role === 'parent' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {myStudents.map(student => (
-                <StudentCard key={student.id} student={student} />
-              ))}
-            </div>
-          ) : (
-            /* ADMIN/TEACHER VIEW: COMPACT TABLE */
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
-                      <th className="px-6 py-4 font-semibold border-b">Name</th>
-                      <th className="px-6 py-4 font-semibold border-b">Class</th>
-                      <th className="px-6 py-4 font-semibold border-b">Attendance</th>
-                      <th className="px-6 py-4 font-semibold border-b">Avg Grade</th>
-                      <th className="px-6 py-4 font-semibold border-b text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm text-slate-700">
-                    {myStudents.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50 border-b last:border-0 transition-colors">
-                        <td className="px-6 py-4 font-medium">{s.name}</td>
-                        <td className="px-6 py-4">{s.class}</td>
-                        <td className="px-6 py-4">
-                          <StatusBadge value={s.attendance} type="attendance" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge value={s.grade} type="grade" />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <Link to="/reports" className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition">
-                            View Report
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* 2. ANNOUNCEMENT SLIDER (CAROUSEL) */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl relative overflow-hidden text-white min-h-[180px] flex items-center">
+        {/* Decorative BG */}
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
+
+        {announcements.length === 0 ? (
+          <div className="w-full text-center p-8 opacity-80 italic">No recent announcements.</div>
+        ) : (
+          <div className="w-full flex items-center justify-between px-2 md:px-6 py-6 relative z-10">
+            
+            {/* Prev Button */}
+            <button onClick={prevSlide} className="p-2 rounded-full hover:bg-white/20 transition hidden md:block">
+              <ChevronLeft size={24} />
+            </button>
+
+            {/* Content Content */}
+            <div className="flex-1 px-4 md:px-12 text-center">
+              <div className="flex justify-center items-center gap-2 mb-3 opacity-90">
+                <Megaphone className="text-yellow-300" size={20} />
+                <span className={`text-[10px] md:text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider ${announcements[activeIndex].target==='All' ? 'bg-purple-500' : 'bg-emerald-500'}`}>
+                  {announcements[activeIndex].target === 'All' ? 'School Wide' : announcements[activeIndex].target}
+                </span>
+                <span className="text-xs opacity-75">• {announcements[activeIndex].date}</span>
+              </div>
+              
+              <h2 className="text-2xl md:text-3xl font-bold mb-2 leading-tight transition-all duration-300">
+                {announcements[activeIndex].title}
+              </h2>
+              <p className="text-blue-100 text-sm md:text-base max-w-2xl mx-auto line-clamp-2">
+                {announcements[activeIndex].body}
+              </p>
+
+              {/* Dots Indicator */}
+              <div className="flex justify-center gap-2 mt-6">
+                {announcements.map((_, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setActiveIndex(idx)}
+                    className={`h-2 rounded-full transition-all duration-300 ${idx === activeIndex ? 'w-6 bg-white' : 'w-2 bg-white/40'}`}
+                  />
+                ))}
               </div>
             </div>
+
+            {/* Next Button */}
+            <button onClick={nextSlide} className="p-2 rounded-full hover:bg-white/20 transition hidden md:block">
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 3. STAT CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard title="Total Students" value={myStudents.length} icon={<Users size={24} className="text-blue-600" />} bg="bg-white" border="border-l-4 border-blue-500" />
+        <StatCard title="Avg Attendance" value={`${avgAttendance}%`} icon={<TrendingUp size={24} className="text-emerald-600" />} bg="bg-white" border="border-l-4 border-emerald-500" />
+        <StatCard title="Students At Risk" value={atRiskCount} icon={<AlertTriangle size={24} className="text-red-600" />} bg="bg-white" border="border-l-4 border-red-500" />
+      </div>
+
+      {/* 4. MAIN CONTENT GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* GRAPH SECTION */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          {user.role === 'admin' && (
+            <>
+              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <TrendingUp size={20} className="text-blue-500" /> Attendance by Class (Last Week)
+              </h3>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={classAttendanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                    <Tooltip cursor={{fill: '#F1F5F9'}} contentStyle={{ borderRadius: '8px' }} />
+                    <Bar dataKey="attendance" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40} name="Attendance %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
           )}
-        </>
-      )}
-    </div>
-  );
-}
 
-// --- SUB-COMPONENTS ---
+          {user.role === 'teacher' && (
+            <>
+              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <TrendingUp size={20} className="text-emerald-500" /> Daily Attendance Trend
+              </h3>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dailyAttendanceData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                    <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                    <Line type="monotone" dataKey="present" stroke="#10B981" strokeWidth={3} dot={{r: 4, fill: '#10B981'}} activeDot={{r: 6}} name="Attendance %" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
 
-function StudentCard({ student }) {
-  const isAtRisk = student.grade < 50 || student.attendance < 80;
-
-  return (
-    <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${isAtRisk ? 'border-red-500' : 'border-emerald-500'} flex flex-col`}>
-      
-      {/* Card Header */}
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">{student.name}</h2>
-          <p className="text-slate-500 font-medium">Class {student.class}</p>
+          {user.role === 'parent' && (
+             <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+               <div className="bg-slate-100 p-4 rounded-full"><Megaphone className="text-slate-400" size={32}/></div>
+               <p className="text-slate-500 italic max-w-md">Use the announcement slider above to check important school updates, or check the Report card page for detailed marks.</p>
+             </div>
+          )}
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${isAtRisk ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-          {isAtRisk ? 'Needs Attention' : 'On Track'}
-        </span>
-      </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        {/* Attendance */}
-        <div className="bg-slate-50 p-4 rounded-xl">
-          <p className="text-xs text-slate-500 font-bold uppercase mb-1">Attendance</p>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-slate-700">{student.attendance}%</span>
+        {/* STUDENT LIST */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[400px]">
+          <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+            <h3 className="font-bold text-slate-800">Student List</h3>
+            <Link to="/reports" className="text-xs text-blue-600 font-bold uppercase hover:underline">View All</Link>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-            <div className={`h-1.5 rounded-full ${student.attendance < 80 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${student.attendance}%` }}></div>
+          <div className="overflow-y-auto flex-1">
+            <table className="w-full text-left">
+              <tbody className="divide-y text-sm">
+                {myStudents.map(s => (
+                  <tr key={s.id} className="hover:bg-slate-50 transition">
+                    <td className="px-6 py-3 font-medium text-slate-700">
+                      {s.name}
+                      <p className="text-[10px] text-slate-400">{s.class}</p>
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${s.attendance >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                        {s.attendance}% Att.
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Grade */}
-        <div className="bg-slate-50 p-4 rounded-xl">
-          <p className="text-xs text-slate-500 font-bold uppercase mb-1">Avg Grade</p>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-slate-700">{student.grade}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-            <div className={`h-1.5 rounded-full ${student.grade < 50 ? 'bg-red-500' : 'bg-purple-500'}`} style={{ width: `${student.grade}%` }}></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Behavior Section */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-xs text-slate-500 font-bold uppercase">Behavior Score</p>
-          <span className="text-sm font-semibold text-slate-700">{student.behaviorScore || 100}/100</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="h-2 rounded-full bg-amber-400" 
-            style={{ width: `${student.behaviorScore || 100}%` }}
-          ></div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="mt-auto pt-4 border-t border-gray-100 flex gap-3">
-        <Link to="/reports" className="flex-1 bg-slate-800 text-white text-center py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-900 transition">
-          View Full Report
-        </Link>
-        <Link to="/wellbeing" className="flex-1 bg-white border border-gray-200 text-slate-700 text-center py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
-          Well-being Check
-        </Link>
       </div>
     </div>
   );
 }
 
-function StatusBadge({ value, type }) {
-  let color = 'bg-gray-100 text-gray-800';
-  
-  if (type === 'attendance') {
-    if (value >= 90) color = 'bg-emerald-100 text-emerald-800';
-    else if (value >= 80) color = 'bg-yellow-100 text-yellow-800';
-    else color = 'bg-red-100 text-red-800';
-  } else {
-    if (value >= 75) color = 'bg-emerald-100 text-emerald-800';
-    else if (value >= 50) color = 'bg-yellow-100 text-yellow-800';
-    else color = 'bg-red-100 text-red-800';
-  }
-
+function StatCard({ title, value, icon, bg, border }) {
   return (
-    <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${color}`}>
-      {value}%
-    </span>
+    <div className={`${bg} ${border} p-6 rounded-xl shadow-sm flex items-center justify-between transform hover:-translate-y-1 transition duration-300`}>
+      <div>
+        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
+        <h2 className="text-3xl font-extrabold text-slate-800">{value}</h2>
+      </div>
+      <div className="bg-slate-50 p-3 rounded-lg">{icon}</div>
+    </div>
   );
 }
