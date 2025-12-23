@@ -41,7 +41,7 @@ export default function Wellbeing() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">Well-being Monitor</h1>
+        <h1 className="text-3xl font-bold text-slate-800">Well-being Report</h1>
         <p className="text-slate-500">
           Automated detection of students requiring attention based on academic and behavioral patterns.
         </p>
