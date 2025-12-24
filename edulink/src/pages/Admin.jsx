@@ -12,10 +12,10 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // --- CONSTANTS: STANDARD CLASS LIST ---
-const FORMS = [1, 2, 3, 4, 5];
+const FORMS = [1, 2, 3, 4, 5, 6];
 const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
 const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
-  acc[`Form ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
+  acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
   return acc;
 }, {});
 
