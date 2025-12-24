@@ -40,7 +40,6 @@ export default function Reports() {
   };
 
   // Helper: Calculate Rank based on TOTAL SCORE
-  // MODIFIED: Returns "N/A" if total score is 0
   const getStudentRank = (studentId, studentClass) => {
     // 1. Get the current student's score
     const student = students.find(s => s.id === studentId);
@@ -75,11 +74,18 @@ export default function Reports() {
     const signFieldUser = getField("signedBy");
     const signFieldDate = getField("signedAt");
 
-    // Save name and date to Firebase
-    await update(ref(db, `students/${studentId}`), {
-      [signFieldUser]: user.name,
-      [signFieldDate]: new Date().toISOString(),
-    });
+    // Fallback if user.name is undefined
+    const signerName = user.name || user.email || "Parent";
+
+    try {
+      await update(ref(db, `students/${studentId}`), {
+        [signFieldUser]: signerName,
+        [signFieldDate]: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Sign failed:", error);
+      alert("Failed to sign. Check permissions.");
+    }
   }
 
   // Allow teacher to remove sign
@@ -89,7 +95,6 @@ export default function Reports() {
     const signFieldUser = getField("signedBy");
     const signFieldDate = getField("signedAt");
 
-    // Remove signature
     await update(ref(db, `students/${studentId}`), {
       [signFieldUser]: null,
       [signFieldDate]: null,
@@ -141,8 +146,8 @@ export default function Reports() {
   }
 
   const handleEditChange = (id, field, value) => {
-    // Validation
-    if (!field.includes('behavior') && !field.includes('signed')) {
+    // Validation: Allow text for comments and signatures
+    if (!field.includes('behavior') && !field.includes('signed') && !field.includes('strength') && !field.includes('weakness')) {
         const num = Number(value);
         if (num < 0 || num > 100) return; 
     }
@@ -170,23 +175,19 @@ export default function Reports() {
   // --- FILTERING ---
   if (loading) return <div className="p-6">Loading...</div>;
 
-  // 1. First, get the list allowed by User Role
   let filteredList = [];
   if (user.role === 'parent') {
     filteredList = students.filter(s => s.parentId === user.uid);
   } else if (user.role === 'teacher') {
-    // FIXED TYPO: changed .filters to .filter
     filteredList = students.filter(s => s.class === user.class);
   } else {
     filteredList = students;
   }
 
-  // 2. Filter by Year (if not "All")
   if (selectedYear !== "All") {
     filteredList = filteredList.filter(s => s.class && s.class.startsWith(selectedYear));
   }
 
-  // 3. Then, filter that list by the Search Term
   const viewList = filteredList.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -203,7 +204,7 @@ export default function Reports() {
         </div>
       </div>
 
-       {/* --- TOOLBAR (Search & Year Filter) --- */}
+       {/* --- TOOLBAR --- */}
       {(user.role === 'admin' || user.role === 'teacher') && (
         <div className="mb-4 flex gap-4">
           <input 
@@ -231,15 +232,15 @@ export default function Reports() {
       )}
 
       <div className="bg-white rounded-xl shadow border overflow-hidden">
-        <table className="w-full text-left  border-collapse">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
             <tr>
               <th className="px-6 py-4">Student</th>
               <th className="px-4 py-4 text-center w-35">Att. (%)</th>
               <th className="px-4 py-4 text-center w-35">Co-Cu (%)</th>
               <th className="px-4 py-4 text-center w-40">Rank In Class</th>
-              <th className="px-6 py-4 text-center w-40">Behavior</th>
-              <th className="px-6 py-4 text-center w-40">Status</th>
+              <th className="px-6 py-4 text-center w-64">Teacher Comments</th>
+              <th className="px-6 py-4 text-center w-40">Signature</th>
               <th className="px-6 py-4 text-center w-30">Actions</th>
             </tr>
           </thead>
@@ -247,12 +248,13 @@ export default function Reports() {
             {viewList.map(s => {
               const attendance = getValue(s.id, 'attendance');
               const cocu = getValue(s.id, 'cocu_attendance');
-              const behavior = getValue(s.id, 'behavior');
+              const strength = getValue(s.id, 'strength'); 
+              const weakness = getValue(s.id, 'weakness');  
               const signedBy = s[getField('signedBy')];
               const signedAt = s[getField('signedAt')];
               const isEditing = !!edits[s.id];
               const { rank, total } = getStudentRank(s.id, s.class);
-
+            
               return (
                 <tr key={s.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-medium">
@@ -260,12 +262,14 @@ export default function Reports() {
                     <div className="text-xs text-gray-400">{s.class}</div>
                   </td>
                   
+                  {/* --- CONDITIONAL RENDERING: TEACHER vs PARENT --- */}
                   {(user.role === 'teacher' || user.role === 'admin') ? (
                     <>
+                      {/* TEACHER: Inputs */}
                       <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={attendance} onChange={e => handleEditChange(s.id, 'attendance', e.target.value)} /></td>
                       <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={cocu} onChange={e => handleEditChange(s.id, 'cocu_attendance', e.target.value)} /></td>
                       
-                      {/* RANK DISPLAY FOR TEACHERS */}
+                      {/* TEACHER: Rank Display */}
                       <td className="px-4 py-4 text-center font-bold text-slate-700">
                         {rank === "N/A" ? (
                             <span className="text-gray-400 italic font-normal">N/A</span>
@@ -274,22 +278,33 @@ export default function Reports() {
                         )}
                       </td>
                       
-                      <td className="px-6 py-4 text-center">
-                        <select className="w-full border rounded p-1 text-sm bg-white" value={behavior} onChange={e => handleEditChange(s.id, 'behavior', e.target.value)}>
-                            <option value="">Select</option>
-                            <option value="Excellent">Excellent</option>
-                            <option value="Good">Good</option>
-                            <option value="Satisfactory">Satisfactory</option>
-                            <option value="Needs Improvement">Needs Improvement</option>
-                        </select>
+                      {/* TEACHER: Comment Inputs */}
+                      <td className="px-4 py-4">
+                          <div className="flex flex-col gap-2">
+                              <textarea 
+                                  placeholder="Strengths..." 
+                                  className="w-full border rounded p-2 text-xs bg-white resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                                  rows="2"
+                                  value={strength} 
+                                  onChange={e => handleEditChange(s.id, 'strength', e.target.value)} 
+                              />
+                              <textarea 
+                                  placeholder="Weaknesses..." 
+                                  className="w-full border rounded p-2 text-xs bg-white resize-none focus:ring-2 focus:ring-red-500 outline-none"
+                                  rows="2"
+                                  value={weakness} 
+                                  onChange={e => handleEditChange(s.id, 'weakness', e.target.value)} 
+                              />
+                          </div>
                       </td>
                     </>
                   ) : (
                     <>
+                      {/* PARENT: Read Only Text */}
                       <td className="px-4 py-4 text-center">{attendance || '-'}%</td>
                       <td className="px-4 py-4 text-center">{cocu || '-'}%</td>
                       
-                      {/* RANK DISPLAY FOR PARENTS */}
+                      {/* PARENT: Rank Display */}
                       <td className="px-4 py-4 text-center font-bold text-blue-600">
                         {rank === "N/A" ? (
                             <span className="text-gray-400 italic font-normal">N/A</span>
@@ -298,11 +313,27 @@ export default function Reports() {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 text-center"><span className="px-2 py-1 rounded-full bg-gray-100 text-xs">{behavior || 'Pending'}</span></td>
+                      {/* PARENT: Comment Display (Text Only) */}
+                      <td className="px-6 py-4 text-left align-top">
+                          <div className="flex flex-col gap-2 text-xs">
+                              <div>
+                                  <span className="font-bold text-green-700 block mb-1">Strengths:</span>
+                                  <p className="text-slate-600 bg-green-50 p-2 rounded border border-green-100">
+                                      {strength || <span className="italic text-gray-400">No comment yet.</span>}
+                                  </p>
+                              </div>
+                              <div>
+                                  <span className="font-bold text-red-700 block mb-1">Weaknesses:</span>
+                                  <p className="text-slate-600 bg-red-50 p-2 rounded border border-red-100">
+                                      {weakness || <span className="italic text-gray-400">No comment yet.</span>}
+                                  </p>
+                              </div>
+                          </div>
+                      </td>
                     </>
                   )}
 
-                  {/* SIGNATURE COLUMN WITH DATE*/}
+                  {/* SIGNATURE COLUMN (Common to both) */}
                   <td className="px-6 py-4 text-center">
                     {signedBy ? (
                       <div className="flex flex-col items-center">
@@ -331,8 +362,8 @@ export default function Reports() {
                     )}
                   </td>
                   
+                  {/* ACTIONS COLUMN */}
                   <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                    {/* View Details Button */}
                     <button 
                         onClick={() => setSelectedStudent(s)}
                         className="text-blue-600 hover:text-blue-800 text-xs font-semibold border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded transition"
@@ -340,12 +371,10 @@ export default function Reports() {
                         View Details
                     </button>
                     
-                    {/* Teacher & Admin : Save Button */}
                     {(user.role === 'teacher' || user.role === 'admin') && isEditing && (
                       <button onClick={()=>handleSaveMain(s.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs">Save</button>
                     )}
                     
-                    {/* Parent: Sign Button */}
                     {user.role === 'parent' && !signedBy && (
                       <button onClick={()=>handleSign(s.id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs">Sign</button>
                     )}
