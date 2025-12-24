@@ -7,30 +7,45 @@ export default function Wellbeing() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Helper to identify failing subjects across terms
-  const getFailingSubjects = (student) => {
-    const failing = [];
+  // --- HELPER: Identify Issues per Term ---
+  const getTermIssues = (student, termPrefix) => {
+    const issues = {
+      hasIssues: false,
+      attendance: null,
+      cocu: null,
+      failingSubjects: []
+    };
+
+    // 1. Check Attendance (< 85%)
+    const attKey = `${termPrefix}_attendance`;
+    const cocuKey = `${termPrefix}_cocu_attendance`;
+
+    if (student[attKey] !== undefined && Number(student[attKey]) < 85) {
+      issues.attendance = student[attKey];
+      issues.hasIssues = true;
+    }
+    if (student[cocuKey] !== undefined && Number(student[cocuKey]) < 85) {
+      issues.cocu = student[cocuKey];
+      issues.hasIssues = true;
+    }
+
+    // 2. Check Subjects (< 50%)
     const subjects = {
       'subj_bm': 'Bahasa Melayu',
       'subj_english': 'English',
       'subj_math': 'Mathematics',
       'subj_science': 'Science'
     };
-    
-    ['t1', 't2'].forEach(term => {
-      Object.entries(subjects).forEach(([key, label]) => {
-        const dbKey = `${term}_${key}`;
-        if (student[dbKey] && Number(student[dbKey]) < 50) {
-          failing.push({
-            id: dbKey,
-            term: term === 't1' ? 'Term 1' : 'Term 2',
-            subject: label,
-            score: student[dbKey]
-          });
-        }
-      });
+
+    Object.entries(subjects).forEach(([key, label]) => {
+      const dbKey = `${termPrefix}_${key}`;
+      if (student[dbKey] !== undefined && Number(student[dbKey]) < 50) {
+        issues.failingSubjects.push({ subject: label, score: student[dbKey] });
+        issues.hasIssues = true;
+      }
     });
-    return failing;
+
+    return issues.hasIssues ? issues : null;
   };
 
   useEffect(() => {
@@ -50,17 +65,11 @@ export default function Wellbeing() {
         relevantStudents = allStudents; // Admin
       }
 
-      // Filter for "At Risk"
-      // New Criteria: 
-      // 1. Class Attendance < 85 OR CoCu Attendance < 85
-      // 2. Any subject grade < 50 (Failing)
+      // Filter for "At Risk" in EITHER Term 1 OR Term 2
       const atRisk = relevantStudents.filter(s => {
-        const poorAttendance = (s.attendance && s.attendance < 85) || (s.cocu_attendance && s.cocu_attendance < 85);
-        
-        const failingSubjects = getFailingSubjects(s);
-        const hasFailingGrades = failingSubjects.length > 0 || (s.grade && s.grade < 50);
-
-        return poorAttendance || hasFailingGrades;
+        const t1 = getTermIssues(s, 't1');
+        const t2 = getTermIssues(s, 't2');
+        return t1 || t2;
       });
       
       setAlerts(atRisk);
@@ -76,7 +85,7 @@ export default function Wellbeing() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Well-being Report</h1>
         <p className="text-slate-500">
-          Automated detection of students requiring attention based on detailed academic and attendance patterns.
+          Automated detection of students requiring attention based on academic and attendance patterns per term.
         </p>
       </div>
 
@@ -89,67 +98,99 @@ export default function Wellbeing() {
           </div>
         ) : (
           alerts.map(s => {
-            const failingList = getFailingSubjects(s);
-            const isAttendanceRisk = (s.attendance && s.attendance < 85) || (s.cocu_attendance && s.cocu_attendance < 85);
-            
+            const t1Issues = getTermIssues(s, 't1');
+            const t2Issues = getTermIssues(s, 't2');
+
             return (
-              <div key={s.id} className="bg-white p-6 rounded-xl shadow-sm border-l-8 border-red-500 flex flex-col">
-                <div className="mb-4">
+              <div key={s.id} className="bg-white p-6 rounded-xl shadow-sm border-l-8 border-red-500 flex flex-col gap-4">
+                <div className="border-b border-slate-50 pb-2">
                   <h3 className="text-xl font-bold text-slate-800">{s.name}</h3>
                   <p className="text-sm text-gray-500">{s.class}</p>
                 </div>
                 
-                <div className="space-y-4 mb-6">
-                  {/* ATTENDANCE SECTION */}
-                  {isAttendanceRisk && (
-                    <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-100">
-                      <p className="text-xs font-bold uppercase tracking-wider mb-2 text-red-600 flex items-center gap-1">
-                        ⚠️ Attendance Alerts
-                      </p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className={s.attendance < 85 ? "font-bold" : "text-gray-600"}>Classroom</span>
-                          <span className={`font-mono ${s.attendance < 85 ? "text-red-600 font-bold" : "text-gray-600"}`}>
-                            {s.attendance || 0}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className={s.cocu_attendance < 85 ? "font-bold" : "text-gray-600"}>Co-Curriculum</span>
-                          <span className={`font-mono ${s.cocu_attendance < 85 ? "text-red-600 font-bold" : "text-gray-600"}`}>
-                            {s.cocu_attendance || 0}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                {/* --- TERM 1 REPORT --- */}
+                {t1Issues && (
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Term 1 Issues</h4>
+                    
+                    {/* Attendance T1 */}
+                    {(t1Issues.attendance || t1Issues.cocu) && (
+                       <div className="mb-3">
+                         <p className="text-[10px] font-bold text-red-600 mb-1">⚠️ ATTENDANCE</p>
+                         {t1Issues.attendance && (
+                           <div className="flex justify-between text-sm mb-1">
+                             <span className="text-slate-600">Class</span>
+                             <span className="font-bold text-red-600">{t1Issues.attendance}%</span>
+                           </div>
+                         )}
+                         {t1Issues.cocu && (
+                           <div className="flex justify-between text-sm">
+                             <span className="text-slate-600">Co-Curriculum</span>
+                             <span className="font-bold text-red-600">{t1Issues.cocu}%</span>
+                           </div>
+                         )}
+                       </div>
+                    )}
 
-                  {/* GRADES SECTION */}
-                  {(failingList.length > 0 || (s.grade && s.grade < 50)) && (
-                    <div className="bg-orange-50 text-orange-800 p-3 rounded-lg border border-orange-100">
-                      <p className="text-xs font-bold uppercase tracking-wider mb-2 text-orange-600 flex items-center gap-1">
-                        📚 Academic Concerns
-                      </p>
-                      
-                      {failingList.length > 0 ? (
+                    {/* Academics T1 */}
+                    {t1Issues.failingSubjects.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-orange-600 mb-1">📚 ACADEMIC (FAILING)</p>
                         <ul className="space-y-1">
-                          {failingList.map((fail) => (
-                            <li key={fail.id} className="flex justify-between text-sm">
-                              <span>{fail.subject} <span className="text-[10px] text-orange-400">({fail.term})</span></span>
-                              <span className="font-mono font-bold text-orange-700">{fail.score}%</span>
+                          {t1Issues.failingSubjects.map((sub, idx) => (
+                            <li key={idx} className="flex justify-between text-sm">
+                              <span className="text-slate-600">{sub.subject}</span>
+                              <span className="font-bold text-orange-600">{sub.score}%</span>
                             </li>
                           ))}
                         </ul>
-                      ) : (
-                        <div className="flex justify-between text-sm">
-                          <span>Overall Grade</span>
-                          <span className="font-mono font-bold text-orange-700">{s.grade}%</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                <div className="mt-auto pt-4 border-t text-xs text-gray-400">
+                {/* --- TERM 2 REPORT --- */}
+                {t2Issues && (
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Term 2 Issues</h4>
+                    
+                    {/* Attendance T2 */}
+                    {(t2Issues.attendance || t2Issues.cocu) && (
+                       <div className="mb-3">
+                         <p className="text-[10px] font-bold text-red-600 mb-1">⚠️ ATTENDANCE</p>
+                         {t2Issues.attendance && (
+                           <div className="flex justify-between text-sm mb-1">
+                             <span className="text-slate-600">Class</span>
+                             <span className="font-bold text-red-600">{t2Issues.attendance}%</span>
+                           </div>
+                         )}
+                         {t2Issues.cocu && (
+                           <div className="flex justify-between text-sm">
+                             <span className="text-slate-600">Co-Curriculum</span>
+                             <span className="font-bold text-red-600">{t2Issues.cocu}%</span>
+                           </div>
+                         )}
+                       </div>
+                    )}
+
+                    {/* Academics T2 */}
+                    {t2Issues.failingSubjects.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-orange-600 mb-1">📚 ACADEMIC (FAILING)</p>
+                        <ul className="space-y-1">
+                          {t2Issues.failingSubjects.map((sub, idx) => (
+                            <li key={idx} className="flex justify-between text-sm">
+                              <span className="text-slate-600">{sub.subject}</span>
+                              <span className="font-bold text-orange-600">{sub.score}%</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-auto pt-2 text-xs text-gray-400 text-center">
                   Auto-detected by EduLink Algorithm
                 </div>
               </div>
