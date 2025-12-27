@@ -7,7 +7,9 @@ export default function Reports() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentTerm, setCurrentTerm] = useState(1); // 1 or 2
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedYear, setSelectedYear] = useState("All");
+
   // State for the "View Details" Modal
   const [selectedStudent, setSelectedStudent] = useState(null);
   
@@ -38,18 +40,30 @@ export default function Reports() {
   };
 
   // Helper: Calculate Rank based on TOTAL SCORE
+  // MODIFIED: Returns "N/A" if total score is 0
   const getStudentRank = (studentId, studentClass) => {
+    // 1. Get the current student's score
+    const student = students.find(s => s.id === studentId);
+    // Check edits first, then database, default to 0
+    const scoreKey = getField("total_score");
+    const myScore = Number(student?.[scoreKey] || 0);
+
     const classmates = students.filter(s => s.class === studentClass);
+    const total = classmates.length;
+
+    // 2. If score is 0, they are not ranked yet
+    if (myScore === 0) {
+        return { rank: "N/A", total };
+    }
     
-    // Sort classmates by Total Score (Highest to Lowest)
+    // 3. Sort classmates by Total Score (Highest to Lowest)
     classmates.sort((a, b) => {
-        const scoreA = Number(a[getField("total_score")] || 0);
-        const scoreB = Number(b[getField("total_score")] || 0);
+        const scoreA = Number(a[scoreKey] || 0);
+        const scoreB = Number(b[scoreKey] || 0);
         return scoreB - scoreA;
     });
 
     const rank = classmates.findIndex(s => s.id === studentId) + 1;
-    const total = classmates.length;
 
     return { rank, total };
   };
@@ -61,26 +75,27 @@ export default function Reports() {
     const signFieldUser = getField("signedBy");
     const signFieldDate = getField("signedAt");
 
-    //Save name and date to Firebase
+    // Save name and date to Firebase
     await update(ref(db, `students/${studentId}`), {
       [signFieldUser]: user.name,
       [signFieldDate]: new Date().toISOString(),
     });
   }
-  //Allow teacher to remove sign
+
+  // Allow teacher to remove sign
   async function handleUnsign(studentId) {
     if (!window.confirm("Are you sure you want to remove this parent signature?")) return;
     
     const signFieldUser = getField("signedBy");
     const signFieldDate = getField("signedAt");
 
-    //Remove signature
+    // Remove signature
     await update(ref(db, `students/${studentId}`), {
       [signFieldUser]: null,
       [signFieldDate]: null,
     });
-
   } 
+
   // Save main table edits
   async function handleSaveMain(id) {
     await update(ref(db, `students/${id}`), edits[id]);
@@ -107,7 +122,7 @@ export default function Reports() {
     const math = getVal(getField("subj_math"));
     const sci = getVal(getField("subj_science"));
 
-    // Calculate TOTAL SCORE instead of Average
+    // Calculate TOTAL SCORE
     const newTotalScore = bm + eng + math + sci;
 
     // Update Firebase with subjects AND new Total Score
@@ -140,18 +155,6 @@ export default function Reports() {
     }));
   };
 
-  // --- FILTERING ---
-  if (loading) return <div className="p-6">Loading...</div>;
-
-  let viewList = [];
-  if (user.role === 'parent') {
-    viewList = students.filter(s => s.parentId === user.uid);
-  } else if (user.role === 'teacher') {
-    viewList = students.filter(s => s.class === user.class);
-  } else {
-    viewList = students; 
-  }
-
   // --- RENDER HELPERS ---
   const getValue = (studentId, baseField) => {
       const key = getField(baseField);
@@ -164,6 +167,31 @@ export default function Reports() {
         : (studentOriginal[key] || '');
   };
 
+  // --- FILTERING ---
+  if (loading) return <div className="p-6">Loading...</div>;
+
+  // 1. First, get the list allowed by User Role
+  let filteredList = [];
+  if (user.role === 'parent') {
+    filteredList = students.filter(s => s.parentId === user.uid);
+  } else if (user.role === 'teacher') {
+    // FIXED TYPO: changed .filters to .filter
+    filteredList = students.filter(s => s.class === user.class);
+  } else {
+    filteredList = students;
+  }
+
+  // 2. Filter by Year (if not "All")
+  if (selectedYear !== "All") {
+    filteredList = filteredList.filter(s => s.class && s.class.startsWith(selectedYear));
+  }
+
+  // 3. Then, filter that list by the Search Term
+  const viewList = filteredList.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="p-6 max-w-7xl mx-auto relative">
       <div className="flex justify-between items-center mb-6">
@@ -174,6 +202,33 @@ export default function Reports() {
             <button onClick={() => setCurrentTerm(2)} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${currentTerm === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Term 2</button>
         </div>
       </div>
+
+       {/* --- TOOLBAR (Search & Year Filter) --- */}
+      {(user.role === 'admin' || user.role === 'teacher') && (
+        <div className="mb-4 flex gap-4">
+          <input 
+            type="text"
+            placeholder="Search by student name or class..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 max-w-sm px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-slate-700 font-medium"
+          >
+            <option value="All">All Years</option>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+            <option value="5">Year 5</option>
+            <option value="6">Year 6</option>
+          </select>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow border overflow-hidden">
         <table className="w-full text-left  border-collapse">
@@ -193,7 +248,6 @@ export default function Reports() {
               const attendance = getValue(s.id, 'attendance');
               const cocu = getValue(s.id, 'cocu_attendance');
               const behavior = getValue(s.id, 'behavior');
-              const totalScore = getValue(s.id, 'total_score'); // Fetch Total Score
               const signedBy = s[getField('signedBy')];
               const signedAt = s[getField('signedAt')];
               const isEditing = !!edits[s.id];
@@ -206,14 +260,19 @@ export default function Reports() {
                     <div className="text-xs text-gray-400">{s.class}</div>
                   </td>
                   
-                  {user.role === 'teacher' ? (
+                  {(user.role === 'teacher' || user.role === 'admin') ? (
                     <>
                       <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={attendance} onChange={e => handleEditChange(s.id, 'attendance', e.target.value)} /></td>
                       <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={cocu} onChange={e => handleEditChange(s.id, 'cocu_attendance', e.target.value)} /></td>
                       
-                      {/* Total Score Display (Calculated in details) */}
-                  
-                      <td className="px-4 py-4 text-center font-bold text-slate-700">#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></td>
+                      {/* RANK DISPLAY FOR TEACHERS */}
+                      <td className="px-4 py-4 text-center font-bold text-slate-700">
+                        {rank === "N/A" ? (
+                            <span className="text-gray-400 italic font-normal">N/A</span>
+                        ) : (
+                            <>#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></>
+                        )}
+                      </td>
                       
                       <td className="px-6 py-4 text-center">
                         <select className="w-full border rounded p-1 text-sm bg-white" value={behavior} onChange={e => handleEditChange(s.id, 'behavior', e.target.value)}>
@@ -229,7 +288,16 @@ export default function Reports() {
                     <>
                       <td className="px-4 py-4 text-center">{attendance || '-'}%</td>
                       <td className="px-4 py-4 text-center">{cocu || '-'}%</td>
-                      <td className="px-4 py-4 text-center font-bold text-blue-600">#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></td>
+                      
+                      {/* RANK DISPLAY FOR PARENTS */}
+                      <td className="px-4 py-4 text-center font-bold text-blue-600">
+                        {rank === "N/A" ? (
+                            <span className="text-gray-400 italic font-normal">N/A</span>
+                        ) : (
+                            <>#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></>
+                        )}
+                      </td>
+
                       <td className="px-6 py-4 text-center"><span className="px-2 py-1 rounded-full bg-gray-100 text-xs">{behavior || 'Pending'}</span></td>
                     </>
                   )}
@@ -238,40 +306,31 @@ export default function Reports() {
                   <td className="px-6 py-4 text-center">
                     {signedBy ? (
                       <div className="flex flex-col items-center">
-                        {/* 1. Green "Signed" Badge */}
                         <span className="text-green-600 text-[10px] bg-green-100 px-2 py-0.5 rounded font-bold uppercase mb-1">
                           Signed
                         </span>
-
-                        {/* 2. Parent Name */}
                         <span className="text-xs font-semibold text-slate-700">
                           {signedBy}
                         </span>
-
-                        {/* 3. The Date (Only shows if signedAt exists) */}
                         {signedAt && (
                           <span className="text-[10px] text-gray-400">
                             {new Date(signedAt).toLocaleDateString('en-GB')}
                           </span>
                         )}
-
-                        {/* [NEW] TEACHER ONLY: UNSIGN BUTTON */}
-                            {user.role === 'teacher' || user.role === 'admin' && (
-                                <button 
-                                    onClick={() => handleUnsign(s.id)}
-                                    className="mt-1 text-[10px] text-red-500 hover:text-red-700 hover:underline font-medium"
-                                >
-                                    (Unsign)
-                                </button>
-                            )}
-
+                        {(user.role === 'teacher' || user.role === 'admin') && (
+                            <button 
+                                onClick={() => handleUnsign(s.id)}
+                                className="mt-1 text-[10px] text-red-500 hover:text-red-700 hover:underline font-medium"
+                            >
+                                (Unsign)
+                            </button>
+                        )}
                       </div>
                     ) : (
-                      // If not signed yet
                       <span className="text-gray-400 text-xs italic">Pending</span>
                     )}
                   </td>
-                  {/* --- MISSING ACTIONS COLUMN --- */}
+                  
                   <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
                     {/* View Details Button */}
                     <button 
@@ -281,8 +340,8 @@ export default function Reports() {
                         View Details
                     </button>
                     
-                    {/* Teacher: Save Button */}
-                    {user.role === 'teacher' && isEditing && (
+                    {/* Teacher & Admin : Save Button */}
+                    {(user.role === 'teacher' || user.role === 'admin') && isEditing && (
                       <button onClick={()=>handleSaveMain(s.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs">Save</button>
                     )}
                     
@@ -332,20 +391,16 @@ export default function Reports() {
 
     return (
         <div key={subj.key} className="flex flex-col">
-            {/* 1. Label is now clean (just the name) */}
             <label className="text-xs font-semibold text-gray-500 mb-1">{subj.label}</label>
-            
             <div className="relative">
                 <input 
                     type="number" 
-                    disabled={user.role !== 'teacher'}
+                    disabled={user.role !== 'teacher' && user.role !== 'admin'}
                     value={val}
                     onChange={(e) => handleEditChange(selectedStudent.id, getField(subj.key), e.target.value)}
                     className={`w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none pr-16 ${user.role !== 'teacher' ? 'bg-gray-50 text-gray-600' : ''}`}
                     placeholder="0"
                 />
-                
-                {/* 2. Position Grade INSIDE the input box on the right */}
                 <div className="absolute right-3 top-2 flex items-center gap-2 pointer-events-none">
                     <span className={`text-sm font-bold ${gradeColor}`}>{grade}</span>
                 </div>
@@ -368,20 +423,28 @@ export default function Reports() {
                            const eng = Number(getValue(selectedStudent.id, "subj_english") || 0);
                            const math = Number(getValue(selectedStudent.id, "subj_math") || 0);
                            const sci = Number(getValue(selectedStudent.id, "subj_science") || 0);
-                           return bm + eng + math + sci; // Sum instead of Average
+                           return bm + eng + math + sci; 
                         })()} <span className="text-sm font-normal text-blue-400">/ 400</span>
                     </div>
                 </div>
                 
+                {/* RANK DISPLAY IN MODAL */}
                 <div className="flex justify-between items-center text-sm text-gray-600 mt-2">
                     <span>Class Rank Position:</span>
-                    <span className="font-bold text-slate-800">#{getStudentRank(selectedStudent.id, selectedStudent.class).rank}</span>
+                    {(() => {
+                        const { rank, total } = getStudentRank(selectedStudent.id, selectedStudent.class);
+                        return rank === "N/A" ? (
+                            <span className="font-bold text-gray-400 italic">N/A</span>
+                        ) : (
+                            <span className="font-bold text-slate-800">#{rank} <span className="text-xs font-normal text-gray-400">/ {total}</span></span>
+                        );
+                    })()}
                 </div>
             </div>
 
             <div className="bg-gray-50 px-6 py-4 border-t flex justify-end gap-3">
                 <button onClick={() => setSelectedStudent(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Close</button>
-                {user.role === 'teacher' && (
+                {(user.role === 'teacher' || user.role === 'admin') && (
                     <button onClick={handleSaveDetails} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium shadow-sm transition">
                         Save Details
                     </button>
