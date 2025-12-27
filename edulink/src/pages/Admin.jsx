@@ -5,14 +5,14 @@ import { getDatabase, ref, onValue, remove, set, push } from 'firebase/database'
 import { firebaseConfig } from '../firebaseConfig'; 
 import { 
   Shield, UserPlus, Users, GraduationCap, Trash2, FileSpreadsheet, 
-  Search, Mail, Lock, Briefcase, ChevronDown, CheckCircle, XCircle 
+  Search, Mail, Briefcase, ChevronDown, CheckCircle, Filter, HeartHandshake 
 } from 'lucide-react';
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// --- CONSTANTS: STANDARD CLASS LIST ---
-const FORMS = [1, 2, 3, 4, 5, 6];
+// --- CONSTANTS ---
+const FORMS = [1, 2, 3, 4, 5];
 const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
 const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
   acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
@@ -27,6 +27,7 @@ export default function Admin() {
   const [generatedCreds, setGeneratedCreds] = useState(null);
   
   const [activeTab, setActiveTab] = useState('users');
+  const [userFilter, setUserFilter] = useState('all'); // NEW: Filter State
   const [importMode, setImportMode] = useState('family'); 
   const [csvFile, setCsvFile] = useState(null);
 
@@ -45,25 +46,21 @@ export default function Admin() {
     return () => { unsubUsers(); unsubStudents(); };
   }, []);
 
+  // ... (Keep existing Helper Functions: generatePassword, generateEmail, createAccount, etc.) ...
   const generatePassword = (len=8) => Math.random().toString(36).slice(-len);
-
   const generateEmail = (name) => {
     if (!name) return 'invalid@edulink.com';
     const clean = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, ''); 
     return `${clean}@edulink.com`;
   };
-
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-  // --- ACTIONS ---
   async function handleAddUser(e) {
     e.preventDefault();
     setLoading(true); setStatus('Creating...'); setGeneratedCreds(null);
-    
     const email = generateEmail(newUser.name);
     const password = generatePassword(8);
     const res = await createAccount(newUser.name, email, password, newUser.role, newUser.className);
-    
     if (res) {
       setGeneratedCreds({ email, password });
       setNewUser({ name: '', role: 'parent', className: '' });
@@ -82,8 +79,7 @@ export default function Admin() {
         name: newStudent.name, class: newStudent.className, parentId: newStudent.parentId,
         grade: 0, attendance: 100, lastUpdated: new Date().toISOString()
       });
-      setStatus('success');
-      setNewStudent({ name: '', className: '', parentId: '' });
+      setStatus('success'); setNewStudent({ name: '', className: '', parentId: '' });
     } catch (err) { setStatus(`Error: ${err.message}`); }
     setLoading(false);
   }
@@ -93,41 +89,26 @@ export default function Admin() {
     const secondaryAuth = getAuth(secondaryApp);
     try {
       let cred;
-      try {
-        cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-      } catch (err) {
+      try { cred = await createUserWithEmailAndPassword(secondaryAuth, email, password); } 
+      catch (err) {
         if (err.code === 'auth/email-already-in-use') {
           const uniqueEmail = email.replace('@', `.${Math.floor(Math.random()*999)}@`);
           cred = await createUserWithEmailAndPassword(secondaryAuth, uniqueEmail, password);
         } else throw err;
       }
-      
       const profile = { name, email: cred.user.email, role, createdAt: new Date().toISOString() };
       if (role === 'teacher' && className) profile.class = className;
-
       await set(ref(db, `users/${cred.user.uid}`), profile);
       await signOut(secondaryAuth);
-      
       return { uid: cred.user.uid, email: cred.user.email, password };
-    } catch (err) {
-      console.error(err);
-      setStatus(`Error: ${err.message}`);
-      return null;
-    } finally {
-      await deleteApp(secondaryApp);
-    }
+    } catch (err) { console.error(err); setStatus(`Error: ${err.message}`); return null; } 
+    finally { await deleteApp(secondaryApp); }
   }
 
-  // --- BULK IMPORT ---
   async function handleBulkImport() {
     if (!csvFile) return;
-    setLoading(true);
-    setStatus("Reading CSV...");
-    
-    const sessionParents = {}; 
-    const newAccounts = [];
-    const reader = new FileReader();
-    
+    setLoading(true); setStatus("Reading CSV...");
+    const sessionParents = {}; const newAccounts = []; const reader = new FileReader();
     reader.onload = async (e) => {
       const rows = e.target.result.split('\n').map(r => r.trim()).filter(r => r);
       for (let i = 1; i < rows.length; i++) {
@@ -137,19 +118,11 @@ export default function Admin() {
           if (!pName) continue;
           const pKey = pName.toLowerCase();
           let parentUid = sessionParents[pKey] || users.find(u => u.name.toLowerCase() === pKey && u.role === 'parent')?.uid;
-
           if (!parentUid) {
             const res = await createAccount(pName, generateEmail(pName), generatePassword(8), 'parent');
-            if (res) {
-              parentUid = res.uid;
-              sessionParents[pKey] = parentUid;
-              newAccounts.push({ ...res, name: pName, role: 'parent' });
-              await delay(300);
-            }
+            if (res) { parentUid = res.uid; sessionParents[pKey] = parentUid; newAccounts.push({ ...res, name: pName, role: 'parent' }); await delay(300); }
           }
-          if (parentUid) {
-            await push(ref(db, 'students'), { name: sName, class: sClass || 'Unassigned', parentId: parentUid, grade: 0, attendance: 100 });
-          }
+          if (parentUid) await push(ref(db, 'students'), { name: sName, class: sClass || 'Unassigned', parentId: parentUid, grade: 0, attendance: 100 });
         } 
         else if (importMode === 'teacher') {
           const [tName, tClass] = cols;
@@ -159,8 +132,7 @@ export default function Admin() {
           }
         }
       }
-      setLoading(false);
-      setStatus("success");
+      setLoading(false); setStatus("success");
       if (newAccounts.length > 0) downloadCredentials(newAccounts);
     };
     reader.readAsText(csvFile);
@@ -177,55 +149,43 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
+  // --- FILTER LOGIC ---
+  const filteredUsers = userFilter === 'all' ? users : users.filter(u => u.role === userFilter);
+
   // --- STYLES ---
   const inputStyle = "w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 text-sm font-medium";
   const labelStyle = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1";
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-slate-800 p-3 rounded-xl shadow-lg shadow-slate-200">
-            <Shield className="text-white" size={28} />
-          </div>
+          <div className="bg-slate-800 p-3 rounded-xl shadow-lg shadow-slate-200"><Shield className="text-white" size={28} /></div>
           <div>
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Admin Portal</h1>
             <p className="text-slate-500 font-medium">Manage users, students, and system access</p>
           </div>
         </div>
-
-        {/* TAB SWITCHER */}
         <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
-          <button 
-            onClick={() => setActiveTab('users')} 
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
+          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Users size={16} /> Manage Logins
           </button>
-          <button 
-            onClick={() => setActiveTab('students')} 
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
+          <button onClick={() => setActiveTab('students')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <GraduationCap size={16} /> Manage Students
           </button>
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        
         {/* LEFT COLUMN: FORMS */}
         <div className="lg:col-span-1 space-y-8">
-          
-          {/* USER FORM */}
           {activeTab === 'users' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
                 <UserPlus className="text-blue-600" size={20} />
                 <h2 className="text-xl font-bold text-slate-800">Create Account</h2>
               </div>
-              
               <form onSubmit={handleAddUser} className="space-y-4">
                 <div>
                   <label className={labelStyle}>Full Name</label>
@@ -234,7 +194,6 @@ export default function Admin() {
                     <input type="text" placeholder="e.g. John Tan" required className={inputStyle} value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
                   </div>
                 </div>
-
                 <div>
                   <label className={labelStyle}>Role Assignment</label>
                   <div className="relative">
@@ -243,11 +202,11 @@ export default function Admin() {
                       <option value="parent">Parent</option>
                       <option value="teacher">Teacher</option>
                       <option value="admin">Admin</option>
+                      <option value="counselor">Counselor</option>
                     </select>
                     <ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
-
                 {newUser.role === 'teacher' && (
                   <div className="animate-fade-in">
                     <label className={labelStyle}>Assigned Class</label>
@@ -256,26 +215,20 @@ export default function Admin() {
                       <select className={`${inputStyle} appearance-none cursor-pointer`} value={newUser.className} onChange={e => setNewUser({...newUser, className: e.target.value})}>
                         <option value="">Select Class...</option>
                         {Object.entries(CLASS_OPTIONS).map(([form, classes]) => (
-                          <optgroup key={form} label={form}>
-                            {classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}
-                          </optgroup>
+                          <optgroup key={form} label={form}>{classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}</optgroup>
                         ))}
                       </select>
                       <ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
                 )}
-
                 <button disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition active:scale-[0.98] disabled:opacity-50">
                   {loading ? 'Processing...' : 'Create Account'}
                 </button>
               </form>
-
               {generatedCreds && (
                 <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl animate-fade-in">
-                  <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm mb-2">
-                    <CheckCircle size={16} /> Account Created
-                  </div>
+                  <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm mb-2"><CheckCircle size={16} /> Account Created</div>
                   <div className="text-xs space-y-1 text-emerald-800">
                     <p>Email: <span className="font-mono bg-white px-1 rounded">{generatedCreds.email}</span></p>
                     <p>Pass: <span className="font-mono bg-white px-1 rounded">{generatedCreds.password}</span></p>
@@ -284,82 +237,39 @@ export default function Admin() {
               )}
             </div>
           )}
-
-          {/* STUDENT FORM */}
           {activeTab === 'students' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
                 <GraduationCap className="text-emerald-600" size={20} />
                 <h2 className="text-xl font-bold text-slate-800">Add Student</h2>
               </div>
-              
               <form onSubmit={handleAddStudent} className="space-y-4">
+                {/* (Student Form inputs kept same as previous code) */}
                 <div>
                   <label className={labelStyle}>Student Name</label>
-                  <div className="relative">
-                    <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                    <input type="text" placeholder="e.g. Ali bin Abu" required className={inputStyle} value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} />
-                  </div>
+                  <div className="relative"><Search size={16} className="absolute left-3 top-3.5 text-slate-400" /><input type="text" placeholder="e.g. Ali bin Abu" required className={inputStyle} value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} /></div>
                 </div>
-
                 <div>
                   <label className={labelStyle}>Class</label>
-                  <div className="relative">
-                    <Briefcase size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                    <select className={`${inputStyle} appearance-none cursor-pointer`} value={newStudent.className} onChange={e => setNewStudent({...newStudent, className: e.target.value})}>
-                      <option value="">Select Class...</option>
-                      {Object.entries(CLASS_OPTIONS).map(([form, classes]) => (
-                        <optgroup key={form} label={form}>
-                          {classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" />
-                  </div>
+                  <div className="relative"><Briefcase size={16} className="absolute left-3 top-3.5 text-slate-400" /><select className={`${inputStyle} appearance-none cursor-pointer`} value={newStudent.className} onChange={e => setNewStudent({...newStudent, className: e.target.value})}><option value="">Select Class...</option>{Object.entries(CLASS_OPTIONS).map(([form, classes]) => (<optgroup key={form} label={form}>{classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}</optgroup>))}</select><ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" /></div>
                 </div>
-
                 <div>
                   <label className={labelStyle}>Parent Link</label>
-                  <div className="relative">
-                    <Users size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                    <select className={`${inputStyle} appearance-none cursor-pointer`} value={newStudent.parentId} onChange={e => setNewStudent({...newStudent, parentId: e.target.value})}>
-                      <option value="">Select Parent...</option>
-                      {users.filter(u => u.role === 'parent').map(p => <option key={p.uid} value={p.uid}>{p.name}</option>)}
-                    </select>
-                    <ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" />
-                  </div>
+                  <div className="relative"><Users size={16} className="absolute left-3 top-3.5 text-slate-400" /><select className={`${inputStyle} appearance-none cursor-pointer`} value={newStudent.parentId} onChange={e => setNewStudent({...newStudent, parentId: e.target.value})}><option value="">Select Parent...</option>{users.filter(u => u.role === 'parent').map(p => <option key={p.uid} value={p.uid}>{p.name}</option>)}</select><ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" /></div>
                 </div>
-
-                <button disabled={loading} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition active:scale-[0.98] disabled:opacity-50">
-                  Add Student Record
-                </button>
+                <button disabled={loading} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition active:scale-[0.98] disabled:opacity-50">Add Student Record</button>
               </form>
             </div>
           )}
-
-          {/* BULK IMPORT */}
+          {/* Bulk Import UI (Kept same) */}
           <div className="bg-slate-800 p-6 rounded-2xl shadow-lg text-white">
-            <div className="flex items-center gap-2 mb-4">
-              <FileSpreadsheet className="text-orange-400" size={20} />
-              <h3 className="font-bold">Bulk Import Tool</h3>
-            </div>
-            
+            <div className="flex items-center gap-2 mb-4"><FileSpreadsheet className="text-orange-400" size={20} /><h3 className="font-bold">Bulk Import Tool</h3></div>
             <div className="flex gap-4 text-xs font-bold mb-4 bg-slate-700/50 p-1 rounded-lg">
-              <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='family'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}>
-                <input type="radio" name="mode" className="hidden" checked={importMode==='family'} onChange={()=>setImportMode('family')} />
-                Families
-              </label>
-              <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='teacher'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}>
-                <input type="radio" name="mode" className="hidden" checked={importMode==='teacher'} onChange={()=>setImportMode('teacher')} />
-                Teachers
-              </label>
+              <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='family'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}><input type="radio" name="mode" className="hidden" checked={importMode==='family'} onChange={()=>setImportMode('family')} /> Families</label>
+              <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='teacher'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}><input type="radio" name="mode" className="hidden" checked={importMode==='teacher'} onChange={()=>setImportMode('teacher')} /> Teachers</label>
             </div>
-            
             <input type="file" accept=".csv" onChange={e => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 mb-4 cursor-pointer"/>
-            
-            <button onClick={handleBulkImport} disabled={loading || !csvFile} className="w-full bg-white text-slate-900 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-100 disabled:opacity-50">
-              Start CSV Import
-            </button>
+            <button onClick={handleBulkImport} disabled={loading || !csvFile} className="w-full bg-white text-slate-900 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-100 disabled:opacity-50">Start CSV Import</button>
             {status === 'success' && <p className="text-xs text-emerald-400 mt-2 text-center">Operation Successful!</p>}
           </div>
         </div>
@@ -368,23 +278,38 @@ export default function Admin() {
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
           <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
             <h2 className="text-lg font-bold text-slate-800">
-              {activeTab === 'users' ? `System Users (${users.length})` : `Enrolled Students (${students.length})`}
+              {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${students.length})`}
             </h2>
-            <div className="flex gap-2">
-              <span className="h-3 w-3 rounded-full bg-red-400"></span>
-              <span className="h-3 w-3 rounded-full bg-yellow-400"></span>
-              <span className="h-3 w-3 rounded-full bg-green-400"></span>
-            </div>
+            
+            {/* NEW: USER FILTER BUTTONS (Only show in Users tab) */}
+            {activeTab === 'users' && (
+              <div className="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm">
+                {['all', 'parent', 'teacher', 'counselor', 'admin'].map(role => (
+                  <button
+                    key={role}
+                    onClick={() => setUserFilter(role)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                      userFilter === role 
+                        ? 'bg-slate-800 text-white shadow' 
+                        : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           
           <ul className="flex-1 overflow-y-auto p-4 space-y-2">
             {activeTab === 'users' 
-              ? users.map(u => (
+              ? filteredUsers.map(u => (
                   <li key={u.uid} className="group flex justify-between items-center p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
                     <div className="flex items-center gap-4">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${
                         u.role === 'admin' ? 'bg-purple-100 text-purple-600' :
                         u.role === 'teacher' ? 'bg-blue-100 text-blue-600' :
+                        u.role === 'counselor' ? 'bg-pink-100 text-pink-600' :
                         'bg-amber-100 text-amber-600'
                       }`}>
                         {u.name.charAt(0).toUpperCase()}
@@ -418,7 +343,6 @@ export default function Admin() {
             }
           </ul>
         </div>
-
       </div>
     </div>
   );
