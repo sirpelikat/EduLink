@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
 import { db, ref, update, onValue } from '../firebaseRTDB';
-import { User, Lock, Shield, Mail, Briefcase, ChevronDown, GraduationCap, Clock } from 'lucide-react';
+import { User, Lock, Shield, Mail, Briefcase, ChevronDown, GraduationCap, Clock, Phone } from 'lucide-react';
 
 // --- CONSTANTS ---
-const FORMS = [1, 2, 3, 4, 5];
+const FORMS = [1, 2, 3, 4, 5, 6]; 
 const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
 const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
-  acc[`Form ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
+  acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
   return acc;
 }, {});
 
@@ -17,6 +17,7 @@ export default function Profile() {
   
   // State
   const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [className, setClassName] = useState(user?.class || '');
   const [profileStatus, setProfileStatus] = useState('');
   
@@ -33,6 +34,7 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setName(user.name || '');
+      setPhone(user.phone || '');
       setClassName(user.class || '');
 
       // FETCH CHILDREN IF PARENT
@@ -40,7 +42,6 @@ export default function Profile() {
         const unsub = onValue(ref(db, 'students'), (snapshot) => {
           const data = snapshot.val();
           const allStudents = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-          // Filter students where parentId matches current user
           const myKids = allStudents.filter(s => s.parentId === user.uid);
           setMyChildren(myKids);
         });
@@ -54,10 +55,12 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true); setProfileStatus('Saving...');
     try {
-      const updates = { name };
+      const updates = { name, phone }; 
       if (user.role === 'teacher') updates.class = className;
+      
       await update(ref(db, `users/${user.uid}`), updates);
       setUser({ ...user, ...updates });
+      
       setProfileStatus('success');
       setTimeout(() => setProfileStatus(''), 3000);
     } catch (err) {
@@ -116,6 +119,12 @@ export default function Profile() {
             <div className="flex items-center gap-2 text-slate-500 mt-1 justify-center md:justify-start">
               <Mail size={14} /> <span className="text-sm font-medium">{user?.email}</span>
             </div>
+            {/* Display Phone if exists */}
+            {user?.phone && (
+              <div className="flex items-center gap-2 text-slate-500 mt-1 justify-center md:justify-start">
+                <Phone size={14} /> <span className="text-sm font-medium">{user?.phone}</span>
+              </div>
+            )}
           </div>
         </div>
         <div className={`z-10 px-5 py-2 rounded-full border-2 text-sm font-extrabold uppercase tracking-widest shadow-sm ${getRoleBadge(user?.role)}`}>
@@ -147,6 +156,8 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {/* FULL NAME */}
             <div>
               <label className={labelStyle}>Full Name</label>
               <div className="relative">
@@ -154,6 +165,22 @@ export default function Profile() {
                 <input type="text" required value={name} onChange={e => setName(e.target.value)} className={inputStyle} placeholder="Your Full Name"/>
               </div>
             </div>
+
+            {/* PHONE NUMBER FIELD */}
+            <div>
+              <label className={labelStyle}>Phone Number</label>
+              <div className="relative">
+                <Phone size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                <input 
+                  type="tel" 
+                  value={phone} 
+                  onChange={e => setPhone(e.target.value)} 
+                  className={inputStyle} 
+                  placeholder="+60 12-345 6789"
+                />
+              </div>
+            </div>
+
             {user?.role === 'teacher' && (
               <div>
                 <label className={labelStyle}>Assigned Class</label>
@@ -212,7 +239,6 @@ export default function Profile() {
             </button>
           </form>
         </div>
-
       </div>
 
       {/* 4. MY CHILDREN (PARENTS ONLY) */}
