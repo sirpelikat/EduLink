@@ -5,7 +5,7 @@ import { logout } from './firebaseRTDB.js';
 import { Menu, X, Github, Linkedin, Code } from 'lucide-react';
 
 // Import the Logo
-import edulinkLogo from './assets/edulink_logo.png'; // <--- IMPORT HEREimport slide1 from './assets/slide1.jpg';
+import edulinkLogo from './assets/edulink_logo.png'; 
 import slide1 from './assets/slide1.png';
 import slide2 from './assets/slide2.png';
 import slide3 from './assets/slide3.png';
@@ -26,7 +26,7 @@ const CAROUSEL_IMAGES = [
   { url: slide3, alt: "Parent-Teacher Meeting" },
 ];
 
-// --- WELCOME COMPONENT ---
+// --- UPDATED WELCOME COMPONENT (Split Screen) ---
 function Welcome() {
   const { user } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -37,32 +37,48 @@ function Welcome() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 flex-grow">
-      <div className="grid lg:grid-cols-2 gap-12 items-center max-w-7xl w-full mb-24 mt-8">
-        <div className="text-center lg:text-left space-y-8">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-800 tracking-tight leading-tight">
-            The Future of <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">School Management</span>
-          </h1>
-          <p className="text-xl text-slate-500 leading-relaxed max-w-lg mx-auto lg:mx-0">
-            EduLink bridges the gap between teachers, parents, and students with real-time insights and seamless communication.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <Link to={user ? "/dashboard" : "/login"} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-xl shadow-blue-200 hover:-translate-y-1">
-              {user ? "Go to Dashboard" : "Sign In to Portal"}
-            </Link>
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] w-full">
+      
+      {/* LEFT HALF: CONTENT */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 md:px-16 lg:px-24 py-12 bg-white order-2 lg:order-1">
+        <div className="max-w-xl space-y-8 animate-fade-in-up">
+          <div className="inline-block px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 font-bold text-xs uppercase tracking-wider mb-2">
+            Welcome to EduLink
           </div>
-        </div>
-        <div className="relative h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
-          {CAROUSEL_IMAGES.map((img, index) => (
-            <img key={index} src={img.url} alt={img.alt} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`} />
-          ))}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent"></div>
-          <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-lg">
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">EduLink Platform</p>
-            <p className="text-sm font-bold text-slate-800">Connecting Teachers and Parents</p>
+          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-800 tracking-tight leading-tight">
+             The Future of <br /> 
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">School Management</span>
+          </h1>
+          <p className="text-xl text-slate-500 leading-relaxed">
+            EduLink bridges the gap between teachers, parents, and students with real-time insights, seamless communication, and automated reporting.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+             <Link to={user ? "/dashboard" : "/login"} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-xl shadow-blue-200 hover:-translate-y-1 text-center">
+               {user ? "Go to Dashboard" : "Sign In to Portal"}
+             </Link>
           </div>
         </div>
       </div>
+
+      {/* RIGHT HALF: CAROUSEL BACKGROUND */}
+      <div className="w-full lg:w-1/2 relative h-[50vh] lg:h-auto bg-slate-900 overflow-hidden order-1 lg:order-2">
+         {CAROUSEL_IMAGES.map((img, index) => (
+            <img 
+              key={index} 
+              src={img.url} 
+              alt={img.alt} 
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`} 
+            />
+          ))}
+          {/* Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent lg:bg-gradient-to-l"></div>
+          
+          <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur-md px-6 py-4 rounded-2xl shadow-lg max-w-xs hidden lg:block animate-fade-in">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">EduLink Platform</p>
+            <p className="text-sm font-bold text-slate-800">Connecting Teachers and Parents</p>
+          </div>
+      </div>
+
     </div>
   );
 }
@@ -84,6 +100,9 @@ export default function App() {
     setIsMenuOpen(false);
   }, [location]);
 
+  // Check if we are on the Welcome page to adjust layout
+  const isWelcomePage = location.pathname === '/';
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
       
@@ -94,7 +113,6 @@ export default function App() {
             
             {/* Logo Section */}
             <Link to="/" className="font-extrabold text-2xl text-blue-600 tracking-tight flex items-center gap-3">
-              {/* USE THE IMPORTED LOGO VARIABLE HERE */}
               <img src={edulinkLogo} alt="EduLink" className="h-8 w-8 object-contain" />
               EduLink
             </Link>
@@ -155,7 +173,8 @@ export default function App() {
       </header>
 
       {/* --- MAIN CONTENT --- */}
-      <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
+      {/* Dynamic Class: If Welcome page, go full width. Else, keep standard container. */}
+      <main className={isWelcomePage ? "w-full flex-grow" : "max-w-7xl mx-auto px-6 py-8 flex-grow w-full"}>
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/dashboard" element={<Dashboard />} />
