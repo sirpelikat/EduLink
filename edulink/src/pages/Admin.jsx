@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getDatabase, ref, onValue, remove, set, push } from 'firebase/database';
+import { getDatabase, ref, onValue, remove, set, push, update } from 'firebase/database';
 import { firebaseConfig } from '../firebaseConfig'; 
 import { 
   Shield, UserPlus, Users, GraduationCap, Trash2, FileSpreadsheet, 
-  Search, Mail, Briefcase, ChevronDown, CheckCircle, Filter, HeartHandshake, Phone, X 
+  Search, Mail, Briefcase, ChevronDown, CheckCircle, Filter, Phone, X, Pencil, Save 
 } from 'lucide-react';
 
 const app = initializeApp(firebaseConfig);
@@ -15,7 +15,7 @@ const db = getDatabase(app);
 const FORMS = [1, 2, 3, 4, 5, 6];
 const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
 const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
-  acc[`Form ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
+  acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
   return acc;
 }, {});
 
@@ -28,9 +28,13 @@ export default function Admin() {
   
   const [activeTab, setActiveTab] = useState('users');
   const [userFilter, setUserFilter] = useState('all'); 
-  const [searchQuery, setSearchQuery] = useState(''); // NEW: Search State
+  const [searchQuery, setSearchQuery] = useState(''); 
   const [importMode, setImportMode] = useState('family'); 
   const [csvFile, setCsvFile] = useState(null);
+
+  // Editing State
+  const [editingId, setEditingId] = useState(null);
+  const [editClass, setEditClass] = useState('');
 
   // Forms
   const [newUser, setNewUser] = useState({ name: '', role: 'parent', className: '' });
@@ -56,6 +60,30 @@ export default function Admin() {
   };
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
+  // --- EDIT ACTIONS ---
+  const startEditing = (id, currentClass) => {
+    setEditingId(id);
+    setEditClass(currentClass || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditClass('');
+  };
+
+  const saveUserClass = async (uid) => {
+    if (!editClass) return alert("Please select a class");
+    await update(ref(db, `users/${uid}`), { class: editClass });
+    setEditingId(null);
+  };
+
+  const saveStudentClass = async (id) => {
+    if (!editClass) return alert("Please select a class");
+    await update(ref(db, `students/${id}`), { class: editClass });
+    setEditingId(null);
+  };
+
+  // --- CREATE ACTIONS ---
   async function handleAddUser(e) {
     e.preventDefault();
     setLoading(true); setStatus('Creating...'); setGeneratedCreds(null);
@@ -150,21 +178,46 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
-  // --- FILTER LOGIC (UPDATED WITH SEARCH) ---
+  // --- FILTER LOGIC (UPDATED WITH CLASS SEARCH) ---
   const filteredUsers = users.filter(u => {
-    // 1. Check Role
     const matchesRole = userFilter === 'all' || u.role === userFilter;
-    // 2. Check Search (Name or Email)
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
-                          (u.email || '').toLowerCase().includes(searchLower);
     
+    // UPDATED: Include u.class check
+    const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
+                          (u.email || '').toLowerCase().includes(searchLower) ||
+                          (u.class || '').toLowerCase().includes(searchLower);
+                          
     return matchesRole && matchesSearch;
+  });
+
+  // NEW: Filter Students too
+  const filteredStudents = students.filter(s => {
+    const searchLower = searchQuery.toLowerCase();
+    
+    // UPDATED: Include s.class check
+    return (s.name || '').toLowerCase().includes(searchLower) ||
+           (s.class || '').toLowerCase().includes(searchLower);
   });
 
   // --- STYLES ---
   const inputStyle = "w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 text-sm font-medium";
   const labelStyle = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1";
+
+  const ClassSelect = ({ value, onChange }) => (
+    <select 
+      value={value} 
+      onChange={onChange}
+      className="text-xs border border-blue-300 rounded px-2 py-1 bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="">Select Class...</option>
+      {Object.entries(CLASS_OPTIONS).map(([form, classes]) => (
+        <optgroup key={form} label={form}>
+          {classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  );
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -178,10 +231,10 @@ export default function Admin() {
           </div>
         </div>
         <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
-          <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+          <button onClick={() => { setActiveTab('users'); setSearchQuery(''); }} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Users size={16} /> Manage Logins
           </button>
-          <button onClick={() => setActiveTab('students')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+          <button onClick={() => { setActiveTab('students'); setSearchQuery(''); }} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <GraduationCap size={16} /> Manage Students
           </button>
         </div>
@@ -286,11 +339,11 @@ export default function Admin() {
         {/* RIGHT COLUMN: LIST */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
           
-          {/* LIST HEADER with FILTERS */}
+          {/* LIST HEADER with FILTERS & SEARCH */}
           <div className="p-6 border-b border-slate-50 space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-800">
-                {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${students.length})`}
+                {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${filteredStudents.length})`}
               </h2>
               
               {/* Role Filters */}
@@ -305,24 +358,22 @@ export default function Admin() {
               )}
             </div>
 
-            {/* SEARCH BAR (NEW) */}
-            {activeTab === 'users' && (
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search by name or email..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            )}
+            {/* SEARCH BAR (Available for BOTH Users and Students) */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-3 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder={activeTab === 'users' ? "Search by name, email, or class..." : "Search by student name or class..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
           
           <ul className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -340,10 +391,27 @@ export default function Admin() {
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{u.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">
-                          {u.email} • <span className="uppercase">{u.role}</span> {u.class && `• ${u.class}`}
+                        <div className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                          {u.email} • <span className="uppercase">{u.role}</span>
+                          
+                          {/* TEACHER CLASS EDITING */}
+                          {u.role === 'teacher' && (
+                            editingId === u.uid ? (
+                              <div className="flex items-center gap-1 ml-1 animate-fade-in">
+                                <ClassSelect value={editClass} onChange={(e) => setEditClass(e.target.value)} />
+                                <button onClick={() => saveUserClass(u.uid)} className="text-emerald-600 hover:text-emerald-700"><Save size={14}/></button>
+                                <button onClick={cancelEditing} className="text-red-500 hover:text-red-700"><X size={14}/></button>
+                              </div>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                {u.class && ` • ${u.class}`}
+                                <button onClick={() => startEditing(u.uid, u.class)} className="ml-1 text-slate-400 hover:text-blue-500"><Pencil size={10}/></button>
+                              </span>
+                            )
+                          )}
+                          
                           {u.phone && <span className="text-slate-400"> • {u.phone}</span>}
-                        </p>
+                        </div>
                       </div>
                     </div>
                     <button onClick={()=>deleteUser(u.uid)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
@@ -351,7 +419,7 @@ export default function Admin() {
                     </button>
                   </li>
                 ))
-              : students.map(s => (
+              : filteredStudents.map(s => (
                   <li key={s.id} className="group flex justify-between items-center p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
@@ -359,7 +427,24 @@ export default function Admin() {
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{s.name}</p>
-                        <p className="text-xs text-slate-500">{s.class} • Parent: {users.find(u=>u.uid===s.parentId)?.name || <span className="text-red-500">Unlinked</span>}</p>
+                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                          
+                          {/* STUDENT CLASS EDITING */}
+                          {editingId === s.id ? (
+                            <div className="flex items-center gap-1 animate-fade-in">
+                              <ClassSelect value={editClass} onChange={(e) => setEditClass(e.target.value)} />
+                              <button onClick={() => saveStudentClass(s.id)} className="text-emerald-600 hover:text-emerald-700"><Save size={14}/></button>
+                              <button onClick={cancelEditing} className="text-red-500 hover:text-red-700"><X size={14}/></button>
+                            </div>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              {s.class}
+                              <button onClick={() => startEditing(s.id, s.class)} className="text-slate-400 hover:text-blue-500"><Pencil size={10}/></button>
+                            </span>
+                          )}
+                          
+                          <span> • Parent: {users.find(u=>u.uid===s.parentId)?.name || <span className="text-red-500">Unlinked</span>}</span>
+                        </div>
                       </div>
                     </div>
                     <button onClick={()=>deleteStudent(s.id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
