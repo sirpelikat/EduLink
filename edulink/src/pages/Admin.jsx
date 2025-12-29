@@ -5,17 +5,17 @@ import { getDatabase, ref, onValue, remove, set, push } from 'firebase/database'
 import { firebaseConfig } from '../firebaseConfig'; 
 import { 
   Shield, UserPlus, Users, GraduationCap, Trash2, FileSpreadsheet, 
-  Search, Mail, Briefcase, ChevronDown, CheckCircle, Filter, HeartHandshake 
+  Search, Mail, Briefcase, ChevronDown, CheckCircle, Filter, HeartHandshake, Phone, X 
 } from 'lucide-react';
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // --- CONSTANTS ---
-const FORMS = [1, 2, 3, 4, 5];
+const FORMS = [1, 2, 3, 4, 5, 6];
 const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
 const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
-  acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
+  acc[`Form ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
   return acc;
 }, {});
 
@@ -27,7 +27,8 @@ export default function Admin() {
   const [generatedCreds, setGeneratedCreds] = useState(null);
   
   const [activeTab, setActiveTab] = useState('users');
-  const [userFilter, setUserFilter] = useState('all'); // NEW: Filter State
+  const [userFilter, setUserFilter] = useState('all'); 
+  const [searchQuery, setSearchQuery] = useState(''); // NEW: Search State
   const [importMode, setImportMode] = useState('family'); 
   const [csvFile, setCsvFile] = useState(null);
 
@@ -46,7 +47,7 @@ export default function Admin() {
     return () => { unsubUsers(); unsubStudents(); };
   }, []);
 
-  // ... (Keep existing Helper Functions: generatePassword, generateEmail, createAccount, etc.) ...
+  // Helpers
   const generatePassword = (len=8) => Math.random().toString(36).slice(-len);
   const generateEmail = (name) => {
     if (!name) return 'invalid@edulink.com';
@@ -149,8 +150,17 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
-  // --- FILTER LOGIC ---
-  const filteredUsers = userFilter === 'all' ? users : users.filter(u => u.role === userFilter);
+  // --- FILTER LOGIC (UPDATED WITH SEARCH) ---
+  const filteredUsers = users.filter(u => {
+    // 1. Check Role
+    const matchesRole = userFilter === 'all' || u.role === userFilter;
+    // 2. Check Search (Name or Email)
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
+                          (u.email || '').toLowerCase().includes(searchLower);
+    
+    return matchesRole && matchesSearch;
+  });
 
   // --- STYLES ---
   const inputStyle = "w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 text-sm font-medium";
@@ -244,7 +254,6 @@ export default function Admin() {
                 <h2 className="text-xl font-bold text-slate-800">Add Student</h2>
               </div>
               <form onSubmit={handleAddStudent} className="space-y-4">
-                {/* (Student Form inputs kept same as previous code) */}
                 <div>
                   <label className={labelStyle}>Student Name</label>
                   <div className="relative"><Search size={16} className="absolute left-3 top-3.5 text-slate-400" /><input type="text" placeholder="e.g. Ali bin Abu" required className={inputStyle} value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} /></div>
@@ -261,7 +270,7 @@ export default function Admin() {
               </form>
             </div>
           )}
-          {/* Bulk Import UI (Kept same) */}
+          {/* Bulk Import UI */}
           <div className="bg-slate-800 p-6 rounded-2xl shadow-lg text-white">
             <div className="flex items-center gap-2 mb-4"><FileSpreadsheet className="text-orange-400" size={20} /><h3 className="font-bold">Bulk Import Tool</h3></div>
             <div className="flex gap-4 text-xs font-bold mb-4 bg-slate-700/50 p-1 rounded-lg">
@@ -276,27 +285,42 @@ export default function Admin() {
 
         {/* RIGHT COLUMN: LIST */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
-          <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-            <h2 className="text-lg font-bold text-slate-800">
-              {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${students.length})`}
-            </h2>
-            
-            {/* NEW: USER FILTER BUTTONS (Only show in Users tab) */}
+          
+          {/* LIST HEADER with FILTERS */}
+          <div className="p-6 border-b border-slate-50 space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">
+                {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${students.length})`}
+              </h2>
+              
+              {/* Role Filters */}
+              {activeTab === 'users' && (
+                <div className="flex bg-slate-100 rounded-lg p-1">
+                  {['all', 'parent', 'teacher', 'counselor', 'admin'].map(role => (
+                    <button key={role} onClick={() => setUserFilter(role)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${userFilter === role ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                      {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SEARCH BAR (NEW) */}
             {activeTab === 'users' && (
-              <div className="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm">
-                {['all', 'parent', 'teacher', 'counselor', 'admin'].map(role => (
-                  <button
-                    key={role}
-                    onClick={() => setUserFilter(role)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                      userFilter === role 
-                        ? 'bg-slate-800 text-white shadow' 
-                        : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-3 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search by name or email..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                    <X size={16} />
                   </button>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -316,7 +340,10 @@ export default function Admin() {
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{u.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">{u.email} • <span className="uppercase">{u.role}</span> {u.class && `• ${u.class}`}</p>
+                        <p className="text-xs text-slate-500 font-mono">
+                          {u.email} • <span className="uppercase">{u.role}</span> {u.class && `• ${u.class}`}
+                          {u.phone && <span className="text-slate-400"> • {u.phone}</span>}
+                        </p>
                       </div>
                     </div>
                     <button onClick={()=>deleteUser(u.uid)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
