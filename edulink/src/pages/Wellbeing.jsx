@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { db, ref, onValue } from '../firebaseRTDB'
+import { db, ref, onValue, update } from '../firebaseRTDB'
 import { useAuth } from '../context/AuthContext'
 import { 
-  AlertCircle, Calendar, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, AlertTriangle, CheckCircle 
+  AlertCircle, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, 
+  AlertTriangle, CheckCircle, Phone, Clock 
 } from 'lucide-react'
 import { 
   BarChart, Bar, Tooltip, ResponsiveContainer 
@@ -11,6 +12,7 @@ import {
 export default function Wellbeing() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
+  const [usersData, setUsersData] = useState({}); // Store all users to find parents
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -63,7 +65,15 @@ export default function Wellbeing() {
     return issues;
   };
 
-  // --- FETCH & PROCESS DATA ---
+  // --- 1. FETCH USERS (For Parent Phone Numbers) ---
+  useEffect(() => {
+    const unsub = onValue(ref(db, "users"), (snap) => {
+      setUsersData(snap.val() || {});
+    });
+    return () => unsub();
+  }, []);
+
+  // --- 2. FETCH & PROCESS STUDENTS ---
   useEffect(() => {
     const unsub = onValue(ref(db, "students"), (snap) => {
       const data = snap.val();
@@ -71,13 +81,13 @@ export default function Wellbeing() {
       
       const allStudents = Object.entries(data).map(([id, val]) => ({ id, ...val }));
       
-      // 1. Role Filter
+      // Role Filter
       let relevantStudents = [];
       if (user.role === 'parent') relevantStudents = allStudents.filter(s => s.parentId === user.uid);
       else if (user.role === 'teacher') relevantStudents = allStudents.filter(s => s.class === user.class);
-      else relevantStudents = allStudents; // Admin
+      else relevantStudents = allStudents; // Admin & Counselor
 
-      // 2. Analyze
+      // Analyze
       const processed = relevantStudents.map(s => {
         const t1 = analyzeTerm(s, 't1');
         const t2 = analyzeTerm(s, 't2');
@@ -86,17 +96,35 @@ export default function Wellbeing() {
         if (t1.priority === 'High' || t2.priority === 'High') overallPriority = 'High';
         else if (t1.priority === 'Low' || t2.priority === 'Low') overallPriority = 'Low';
 
-        return { ...s, t1, t2, overallPriority };
+        // Find Parent Phone (if available)
+        const parent = usersData[s.parentId];
+        const parentPhone = parent?.phone || "Unavailable";
+
+        return { ...s, t1, t2, overallPriority, parentPhone };
       }).filter(s => s.overallPriority !== 'Normal');
 
-      // 3. Sort Alphabetical only (Grouping happens in Render)
+      // Sort Alphabetical
       processed.sort((a, b) => a.name.localeCompare(b.name));
       
       setAlerts(processed);
       setLoading(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, usersData]); // Re-run when usersData loads to ensure phones are mapped
+
+  // --- ACTIONS: Counselor Status Toggle ---
+  const toggleContactStatus = async (student) => {
+    const newStatus = student.contactStatus === 'contacted' ? 'not_contacted' : 'contacted';
+    try {
+      await update(ref(db, `students/${student.id}`), {
+        contactStatus: newStatus,
+        lastContactedAt: newStatus === 'contacted' ? new Date().toISOString() : null
+      });
+    } catch (error) {
+      console.error("Failed to update status", error);
+      alert("Error updating status. Please try again.");
+    }
+  };
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading Well-Being data...</div>;
 
@@ -156,7 +184,14 @@ export default function Wellbeing() {
                <h2 className="text-sm font-bold text-red-800 uppercase tracking-wider">High Priority Cases</h2>
                <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{highPriorityList.length}</span>
             </div>
-            {highPriorityList.map(s => <CompactStudentCard key={s.id} student={s} />)}
+            {highPriorityList.map(s => (
+              <CompactStudentCard 
+                key={s.id} 
+                student={s} 
+                userRole={user.role} 
+                onToggleStatus={() => toggleContactStatus(s)} 
+              />
+            ))}
           </div>
         )}
 
@@ -168,7 +203,14 @@ export default function Wellbeing() {
                <h2 className="text-sm font-bold text-amber-800 uppercase tracking-wider">Low Priority Cases</h2>
                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{lowPriorityList.length}</span>
             </div>
-            {lowPriorityList.map(s => <CompactStudentCard key={s.id} student={s} />)}
+            {lowPriorityList.map(s => (
+              <CompactStudentCard 
+                key={s.id} 
+                student={s} 
+                userRole={user.role} 
+                onToggleStatus={() => toggleContactStatus(s)} 
+              />
+            ))}
           </div>
         )}
 
@@ -186,9 +228,9 @@ export default function Wellbeing() {
 }
 
 // --- COMPACT CARD COMPONENT ---
-function CompactStudentCard({ student }) {
+function CompactStudentCard({ student, userRole, onToggleStatus }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { t1, t2, overallPriority } = student;
+  const { t1, t2, overallPriority, contactStatus, parentPhone } = student;
 
   // Tiny Chart Data
   const chartData = [
@@ -199,6 +241,7 @@ function CompactStudentCard({ student }) {
   // Visuals
   const isHigh = overallPriority === 'High';
   const borderClass = isHigh ? 'border-l-red-500' : 'border-l-amber-500';
+  const isContacted = contactStatus === 'contacted';
   
   // Trend Icon
   const getTrend = () => {
@@ -212,29 +255,64 @@ function CompactStudentCard({ student }) {
     <div className={`bg-white rounded-lg shadow-sm border border-slate-200 border-l-[4px] ${borderClass} overflow-hidden hover:shadow-md transition-all`}>
       
       {/* CARD HEADER */}
-      <div className="flex flex-col sm:flex-row items-center p-3 gap-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+      <div className="flex flex-col sm:flex-row items-center p-3 gap-4">
         
-        {/* 1. Student Info */}
-        <div className="flex-1 flex items-center gap-3 w-full">
+        {/* 1. Student Info + Click to Open */}
+        <div className="flex-1 flex items-center gap-3 w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
            <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${isHigh ? 'bg-red-500' : 'bg-amber-500'}`}>
               {student.name.charAt(0)}
            </div>
            <div>
               <h3 className="text-sm font-bold text-slate-800">{student.name}</h3>
-              {/* REMOVED: High/Low Label here, as it's now redundant with the section header */}
-              <span className="text-xs text-slate-500 font-mono">{student.class}</span>
+              <div className="flex items-center gap-2">
+                 <span className="text-xs text-slate-500 font-mono">{student.class}</span>
+                 
+                 {/* COUNSELOR ONLY: SHOW PARENT PHONE */}
+                 {userRole === 'counselor' && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                      <Phone size={10} />
+                      {parentPhone}
+                    </span>
+                 )}
+              </div>
            </div>
         </div>
 
-        {/* 2. Micro Graph & Trend */}
+        {/* 2. Counselor Actions & Micro Graph */}
         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-           <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+           
+           {/* COUNSELOR CONTACT BUTTON */}
+           {userRole === 'counselor' && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onToggleStatus(); }}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
+                 isContacted 
+                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                   : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
+               }`}
+             >
+               {isContacted ? (
+                 <>
+                   <CheckCircle size={14} className="text-emerald-500" />
+                   Successfully Contacted
+                 </>
+               ) : (
+                 <>
+                   <Phone size={14} className={isHigh ? "text-red-500" : "text-amber-500"} />
+                   Not Contacted Yet
+                 </>
+               )}
+             </button>
+           )}
+
+           {/* Trend Info */}
+           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 hidden md:flex">
               <span className="text-[10px] uppercase tracking-wider">Trend:</span>
               {getTrend()}
            </div>
 
-           {/* Recharts Micro Chart */}
-           <div className="h-10 w-24">
+           {/* Micro Chart */}
+           <div className="h-10 w-24 hidden sm:block">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart data={chartData}>
                     <Tooltip cursor={{fill: 'transparent'}} contentStyle={{display:'none'}} />
@@ -244,7 +322,7 @@ function CompactStudentCard({ student }) {
               </ResponsiveContainer>
            </div>
 
-           <button className="text-slate-400 hover:text-slate-600">
+           <button onClick={() => setIsOpen(!isOpen)} className="text-slate-400 hover:text-slate-600">
              {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
            </button>
         </div>
