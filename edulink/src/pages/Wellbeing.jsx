@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { db, ref, onValue } from '../firebaseRTDB'
+import { db, ref, onValue, update } from '../firebaseRTDB'
 import { useAuth } from '../context/AuthContext'
 import { 
-  AlertCircle, Calendar, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, AlertTriangle, CheckCircle 
+  AlertCircle, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, 
+  AlertTriangle, CheckCircle, Phone, ListFilter
 } from 'lucide-react'
 import { 
   BarChart, Bar, Tooltip, ResponsiveContainer 
@@ -11,8 +12,12 @@ import {
 export default function Wellbeing() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
+  const [usersData, setUsersData] = useState({}); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // --- NEW: View State (Not Contacted Yet vs Contacted) ---
+  const [viewStatus, setViewStatus] = useState('not_contacted'); // 'not_contacted' | 'contacted'
 
   // --- HELPER: Analyze Single Term ---
   const analyzeTerm = (student, termPrefix) => {
@@ -63,7 +68,15 @@ export default function Wellbeing() {
     return issues;
   };
 
-  // --- FETCH & PROCESS DATA ---
+  // --- 1. FETCH USERS ---
+  useEffect(() => {
+    const unsub = onValue(ref(db, "users"), (snap) => {
+      setUsersData(snap.val() || {});
+    });
+    return () => unsub();
+  }, []);
+
+  // --- 2. FETCH & PROCESS STUDENTS ---
   useEffect(() => {
     const unsub = onValue(ref(db, "students"), (snap) => {
       const data = snap.val();
@@ -71,13 +84,13 @@ export default function Wellbeing() {
       
       const allStudents = Object.entries(data).map(([id, val]) => ({ id, ...val }));
       
-      // 1. Role Filter
+      // Role Filter
       let relevantStudents = [];
       if (user.role === 'parent') relevantStudents = allStudents.filter(s => s.parentId === user.uid);
       else if (user.role === 'teacher') relevantStudents = allStudents.filter(s => s.class === user.class);
-      else relevantStudents = allStudents; // Admin
+      else relevantStudents = allStudents; // Admin & Counselor
 
-      // 2. Analyze
+      // Analyze
       const processed = relevantStudents.map(s => {
         const t1 = analyzeTerm(s, 't1');
         const t2 = analyzeTerm(s, 't2');
@@ -86,29 +99,55 @@ export default function Wellbeing() {
         if (t1.priority === 'High' || t2.priority === 'High') overallPriority = 'High';
         else if (t1.priority === 'Low' || t2.priority === 'Low') overallPriority = 'Low';
 
-        return { ...s, t1, t2, overallPriority };
+        // Retrieve Parent Phone
+        const parent = usersData[s.parentId];
+        const parentPhone = parent?.phone || "Unavailable";
+
+        return { ...s, t1, t2, overallPriority, parentPhone };
       }).filter(s => s.overallPriority !== 'Normal');
 
-      // 3. Sort Alphabetical only (Grouping happens in Render)
+      // Sort Alphabetical
       processed.sort((a, b) => a.name.localeCompare(b.name));
       
       setAlerts(processed);
       setLoading(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, usersData]);
+
+  // --- ACTIONS ---
+  const toggleContactStatus = async (student) => {
+    const newStatus = student.contactStatus === 'contacted' ? 'not_contacted' : 'contacted';
+    try {
+      await update(ref(db, `students/${student.id}`), {
+        contactStatus: newStatus,
+        lastContactedAt: newStatus === 'contacted' ? new Date().toISOString() : null
+      });
+    } catch (error) {
+      console.error("Failed to update status", error);
+      alert("Error updating status. Please check permissions.");
+    }
+  };
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading Well-Being data...</div>;
 
-  // --- FILTER & SPLIT LOGIC ---
-  const filtered = alerts.filter(s => 
+  // --- FILTER LOGIC (Updated for View State) ---
+  const allFilteredBySearch = alerts.filter(s => 
     !searchTerm.trim() || 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     s.class.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const highPriorityList = filtered.filter(s => s.overallPriority === 'High');
-  const lowPriorityList = filtered.filter(s => s.overallPriority === 'Low');
+  // Split by Status
+  const pendingStudents = allFilteredBySearch.filter(s => s.contactStatus !== 'contacted');
+  const contactedStudents = allFilteredBySearch.filter(s => s.contactStatus === 'contacted');
+
+  // Determine which list to show based on Tab
+  const displayedList = viewStatus === 'not_contacted' ? pendingStudents : contactedStudents;
+
+  // Further split by Priority (for the displayed list only)
+  const highPriorityList = displayedList.filter(s => s.overallPriority === 'High');
+  const lowPriorityList = displayedList.filter(s => s.overallPriority === 'Low');
 
   return (
     <div className="p-4 max-w-5xl mx-auto">
@@ -122,61 +161,108 @@ export default function Wellbeing() {
             <div>
                 <h1 className="text-xl font-bold text-slate-800 leading-tight">Well-Being Monitor</h1>
                 <p className="text-xs text-slate-500 font-medium">
-                  {filtered.length} students identified at risk
+                  {alerts.length} total cases detected
                 </p>
             </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative w-full md:w-72 group">
-            <Search size={16} className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search student or class..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600">
-                <X size={14} />
-              </button>
-            )}
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* View Toggles */}
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+             <button 
+               onClick={() => setViewStatus('not_contacted')}
+               className={`flex-1 flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewStatus === 'not_contacted' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+               <ListFilter size={14} /> 
+               Pending ({pendingStudents.length})
+             </button>
+             <button 
+               onClick={() => setViewStatus('contacted')}
+               className={`flex-1 flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewStatus === 'contacted' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+               <CheckCircle size={14} /> 
+               Contacted ({contactedStudents.length})
+             </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64 group">
+              <Search size={16} className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+          </div>
         </div>
       </div>
 
       {/* --- CONTENT AREA --- */}
-      <div className="space-y-8">
+      <div className="space-y-8 min-h-[400px]">
         
         {/* SECTION 1: HIGH PRIORITY */}
         {highPriorityList.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-2 px-1">
                <AlertTriangle size={18} className="text-red-500" />
-               <h2 className="text-sm font-bold text-red-800 uppercase tracking-wider">High Priority Cases</h2>
+               <h2 className="text-sm font-bold text-red-800 uppercase tracking-wider">High Priority ({viewStatus === 'contacted' ? 'Resolved' : 'Pending'})</h2>
                <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{highPriorityList.length}</span>
             </div>
-            {highPriorityList.map(s => <CompactStudentCard key={s.id} student={s} />)}
+            {highPriorityList.map(s => (
+              <CompactStudentCard 
+                key={s.id} 
+                student={s} 
+                userRole={user.role} 
+                onToggleStatus={() => toggleContactStatus(s)} 
+              />
+            ))}
           </div>
         )}
 
         {/* SECTION 2: LOW PRIORITY */}
         {lowPriorityList.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
             <div className="flex items-center gap-2 px-1 mt-6">
                <AlertCircle size={18} className="text-amber-500" />
-               <h2 className="text-sm font-bold text-amber-800 uppercase tracking-wider">Low Priority Cases</h2>
+               <h2 className="text-sm font-bold text-amber-800 uppercase tracking-wider">Low Priority ({viewStatus === 'contacted' ? 'Resolved' : 'Pending'})</h2>
                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{lowPriorityList.length}</span>
             </div>
-            {lowPriorityList.map(s => <CompactStudentCard key={s.id} student={s} />)}
+            {lowPriorityList.map(s => (
+              <CompactStudentCard 
+                key={s.id} 
+                student={s} 
+                userRole={user.role} 
+                onToggleStatus={() => toggleContactStatus(s)} 
+              />
+            ))}
           </div>
         )}
 
         {/* EMPTY STATE */}
-        {filtered.length === 0 && (
-          <div className="p-12 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-             <CheckCircle size={32} className="mx-auto mb-2 opacity-50" />
-             <p className="font-medium">No students found matching your criteria.</p>
+        {highPriorityList.length === 0 && lowPriorityList.length === 0 && (
+          <div className="p-16 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+             <div className="bg-white inline-flex p-4 rounded-full mb-4 shadow-sm">
+               {viewStatus === 'not_contacted' ? (
+                 <CheckCircle size={32} className="text-emerald-400" />
+               ) : (
+                 <ListFilter size={32} className="text-slate-300" />
+               )}
+             </div>
+             <p className="font-medium text-slate-600">
+               {viewStatus === 'not_contacted' 
+                 ? "All clear! No pending cases found." 
+                 : "No contacted students record found."}
+             </p>
+             <p className="text-xs text-slate-400 mt-1">
+               Try adjusting your search or switching tabs.
+             </p>
           </div>
         )}
 
@@ -186,9 +272,9 @@ export default function Wellbeing() {
 }
 
 // --- COMPACT CARD COMPONENT ---
-function CompactStudentCard({ student }) {
+function CompactStudentCard({ student, userRole, onToggleStatus }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { t1, t2, overallPriority } = student;
+  const { t1, t2, overallPriority, contactStatus, parentPhone } = student;
 
   // Tiny Chart Data
   const chartData = [
@@ -199,6 +285,7 @@ function CompactStudentCard({ student }) {
   // Visuals
   const isHigh = overallPriority === 'High';
   const borderClass = isHigh ? 'border-l-red-500' : 'border-l-amber-500';
+  const isContacted = contactStatus === 'contacted';
   
   // Trend Icon
   const getTrend = () => {
@@ -212,29 +299,61 @@ function CompactStudentCard({ student }) {
     <div className={`bg-white rounded-lg shadow-sm border border-slate-200 border-l-[4px] ${borderClass} overflow-hidden hover:shadow-md transition-all`}>
       
       {/* CARD HEADER */}
-      <div className="flex flex-col sm:flex-row items-center p-3 gap-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+      <div className="flex flex-col sm:flex-row items-center p-3 gap-4">
         
-        {/* 1. Student Info */}
-        <div className="flex-1 flex items-center gap-3 w-full">
+        {/* 1. Student Info + Click to Open */}
+        <div className="flex-1 flex items-center gap-3 w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
            <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${isHigh ? 'bg-red-500' : 'bg-amber-500'}`}>
               {student.name.charAt(0)}
            </div>
            <div>
               <h3 className="text-sm font-bold text-slate-800">{student.name}</h3>
-              {/* REMOVED: High/Low Label here, as it's now redundant with the section header */}
-              <span className="text-xs text-slate-500 font-mono">{student.class}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                 <span className="text-xs text-slate-500 font-mono">{student.class}</span>
+                 {userRole === 'counselor' && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      <Phone size={10} /> {parentPhone}
+                    </span>
+                 )}
+              </div>
            </div>
         </div>
 
-        {/* 2. Micro Graph & Trend */}
+        {/* 2. Counselor Actions & Micro Graph */}
         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-           <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+           
+           {/* COUNSELOR CONTACT BUTTON */}
+           {userRole === 'counselor' && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onToggleStatus(); }}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
+                 isContacted 
+                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                   : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
+               }`}
+             >
+               {isContacted ? (
+                 <>
+                   <CheckCircle size={14} className="text-emerald-500" />
+                   Done
+                 </>
+               ) : (
+                 <>
+                   <Phone size={14} className={isHigh ? "text-red-500" : "text-amber-500"} />
+                   Contact
+                 </>
+               )}
+             </button>
+           )}
+
+           {/* Trend Info */}
+           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 hidden md:flex">
               <span className="text-[10px] uppercase tracking-wider">Trend:</span>
               {getTrend()}
            </div>
 
-           {/* Recharts Micro Chart */}
-           <div className="h-10 w-24">
+           {/* Micro Chart */}
+           <div className="h-10 w-24 hidden sm:block">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart data={chartData}>
                     <Tooltip cursor={{fill: 'transparent'}} contentStyle={{display:'none'}} />
@@ -244,7 +363,7 @@ function CompactStudentCard({ student }) {
               </ResponsiveContainer>
            </div>
 
-           <button className="text-slate-400 hover:text-slate-600">
+           <button onClick={() => setIsOpen(!isOpen)} className="text-slate-400 hover:text-slate-600">
              {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
            </button>
         </div>
@@ -261,7 +380,6 @@ function CompactStudentCard({ student }) {
   );
 }
 
-// --- SUB-COMPONENT: Compact Term Details ---
 function TermDetailCompact({ name, data }) {
   if (data.priority === 'Normal') {
     return (
