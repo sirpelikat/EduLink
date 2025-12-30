@@ -60,17 +60,20 @@ export default function Dashboard() {
   } else if (user.role === 'teacher') {
     myStudents = students.filter(s => s.class === user.class);
     title = `Class ${user.class} Overview`;
+  } else if (user.role === 'counselor') {
+    myStudents = students; // Counselor sees all students
+    title = "Counselor Overview";
   } else {
     myStudents = students;
     title = "School Admin Overview";
   }
 
-  // --- 1. ADMIN DATA: At Risk List ---
-  const atRiskStudentsList = user.role === 'admin' 
+  // --- 1. AT RISK LIST (Admin AND Counselor) ---
+  const atRiskStudentsList = (user.role === 'admin' || user.role === 'counselor') 
     ? students.filter(s => s.t1_total_score && (s.t1_total_score / 4) < 50) 
     : [];
 
-  // --- 2. TEACHER DATA: Subject Averages ---
+  // --- 2. TEACHER DATA ---
   const subjectAvgData = [];
   if (user.role === 'teacher') {
     const subjects = ['bm', 'english', 'math', 'science'];
@@ -82,20 +85,12 @@ export default function Dashboard() {
       subjects.forEach(sub => {
         const key = `${selectedTerm}_subj_${sub}`;
         const val = s[key];
-        if (val) {
-           stats[sub].total += Number(val);
-           stats[sub].count += 1;
-        }
+        if (val) { stats[sub].total += Number(val); stats[sub].count += 1; }
       });
     });
 
     subjects.forEach(sub => {
-       if (stats[sub].count > 0) {
-         subjectAvgData.push({
-           name: subjectLabels[sub],
-           avg: Math.round(stats[sub].total / stats[sub].count)
-         });
-       }
+       if (stats[sub].count > 0) subjectAvgData.push({ name: subjectLabels[sub], avg: Math.round(stats[sub].total / stats[sub].count) });
     });
   }
 
@@ -122,7 +117,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ANNOUNCEMENT SLIDER */}
+      {/* SLIDER */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl relative overflow-hidden text-white min-h-[180px] flex items-center">
         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
         {announcements.length === 0 ? (
@@ -151,25 +146,25 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* STAT CARDS */}
+      {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard title="Total Students" value={myStudents.length} icon={<Users size={24} className="text-blue-600" />} bg="bg-white" border="border-l-4 border-blue-500" />
         <StatCard title="Avg Attendance" value={`${avgAttendance}%`} icon={<TrendingUp size={24} className="text-emerald-600" />} bg="bg-white" border="border-l-4 border-emerald-500" />
         <StatCard title="Students At Risk" value={atRiskStudentsList.length} icon={<AlertTriangle size={24} className="text-red-600" />} bg="bg-white" border="border-l-4 border-red-500" />
       </div>
 
-      {/* MAIN CONTENT GRID */}
+      {/* CONTENT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* LEFT COLUMN */}
         {user.role !== 'parent' && (
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
             
-            {/* ADMIN VIEW: AT RISK LIST */}
-            {user.role === 'admin' && (
+            {/* ADMIN / COUNSELOR VIEW: AT RISK LIST */}
+            {(user.role === 'admin' || user.role === 'counselor') && (
               <>
                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                  <AlertTriangle size={20} className="text-red-500" /> Students At Risk
+                  <AlertTriangle size={20} className="text-red-500" /> Students Needing Support (Avg &lt; 50%)
                 </h3>
                 {atRiskStudentsList.length > 0 ? (
                   <div className="overflow-y-auto h-72 pr-2 custom-scrollbar">
@@ -180,11 +175,11 @@ export default function Dashboard() {
                             <div className="h-10 w-10 rounded-full bg-white text-red-500 font-bold flex items-center justify-center border border-red-200">{s.name.charAt(0)}</div>
                             <div>
                               <p className="font-bold text-slate-800">{s.name}</p>
-                              <p className="text-xs text-red-600 font-semibold">{s.class}</p>
+                              <p className="text-xs text-red-600 font-semibold">{s.class} • Avg: {Math.round(s.t1_total_score/4)}%</p>
                             </div>
                           </div>
                           
-                          {/* LINK CHANGED TO WELLBEING */}
+                          {/* LINK TO WELLBEING */}
                           <Link to="/wellbeing" className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold text-red-600 bg-white px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50">
                             Check Wellbeing <ArrowRight size={14}/>
                           </Link>
@@ -202,7 +197,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* TEACHER VIEW: SUBJECT GRAPH */}
+            {/* TEACHER VIEW */}
             {user.role === 'teacher' && (
               <>
                 <div className="flex justify-between items-center mb-6">
@@ -211,15 +206,7 @@ export default function Dashboard() {
                   </h3>
                   <div className="flex bg-slate-100 p-1 rounded-lg">
                     {['t1', 't2'].map((term) => (
-                      <button
-                        key={term}
-                        onClick={() => setSelectedTerm(term)}
-                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                          selectedTerm === term ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                        }`}
-                      >
-                        {term.toUpperCase()}
-                      </button>
+                      <button key={term} onClick={() => setSelectedTerm(term)} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${selectedTerm === term ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{term.toUpperCase()}</button>
                     ))}
                   </div>
                 </div>
@@ -233,9 +220,7 @@ export default function Dashboard() {
                         <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
                         <Tooltip cursor={{fill: '#F1F5F9'}} contentStyle={{ borderRadius: '8px' }} />
                         <Bar dataKey="avg" radius={[6, 6, 0, 0]} barSize={50} name="Avg Score">
-                          {subjectAvgData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-                          ))}
+                          {subjectAvgData.map((entry, index) => <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />)}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -255,49 +240,29 @@ export default function Dashboard() {
         {/* RIGHT COLUMN: STUDENT LIST */}
         <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[400px] ${user.role === 'parent' ? 'lg:col-span-3 h-auto min-h-[400px]' : ''}`}>
           <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <Users size={18} className="text-blue-500"/> {user.role === 'parent' ? 'My Children' : 'Student List'}
-            </h3>
+            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-500"/> {user.role === 'parent' ? 'My Children' : 'Student List'}</h3>
             <Link to="/reports" className="text-xs text-blue-600 font-bold uppercase hover:underline">View All</Link>
           </div>
           <div className="overflow-y-auto flex-1">
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-xs uppercase text-slate-400 font-semibold">
-                <tr>
-                  <th className="px-6 py-3">Name</th>
-                  <th className="px-6 py-3 text-right">Attendance</th>
-                  {user.role === 'parent' && <th className="px-6 py-3 text-right">Avg Grade</th>}
-                </tr>
+                <tr><th className="px-6 py-3">Name</th><th className="px-6 py-3 text-right">Attendance</th>{user.role === 'parent' && <th className="px-6 py-3 text-right">Avg Grade</th>}</tr>
               </thead>
               <tbody className="divide-y text-sm">
                 {myStudents.map(s => (
                   <tr key={s.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-3 font-medium text-slate-700">
-                      {s.name}
-                      <p className="text-[10px] text-slate-400">{s.class}</p>
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${s.attendance >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{s.attendance}%</span>
-                    </td>
+                    <td className="px-6 py-3 font-medium text-slate-700">{s.name}<p className="text-[10px] text-slate-400">{s.class}</p></td>
+                    <td className="px-6 py-3 text-right"><span className={`px-2 py-1 rounded text-xs font-bold ${s.attendance >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{s.attendance}%</span></td>
                     {user.role === 'parent' && (
-                      <td className="px-6 py-3 text-right font-bold text-slate-700">
-                        {s.t1_total_score ? (
-                          <span>{Math.round(s.t1_total_score / 4)}%</span>
-                        ) : (
-                          <span className="flex items-center justify-end gap-1 text-slate-400 text-[10px] uppercase font-bold tracking-wider"><Clock size={12}/> Not Keyed In</span>
-                        )}
-                      </td>
+                      <td className="px-6 py-3 text-right font-bold text-slate-700">{s.t1_total_score ? <span>{Math.round(s.t1_total_score / 4)}%</span> : <span className="flex items-center justify-end gap-1 text-slate-400 text-[10px] uppercase font-bold tracking-wider"><Clock size={12}/> Not Keyed In</span>}</td>
                     )}
                   </tr>
                 ))}
-                {myStudents.length === 0 && (
-                  <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-400 italic">No students found.</td></tr>
-                )}
+                {myStudents.length === 0 && <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-400 italic">No students found.</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -306,10 +271,7 @@ export default function Dashboard() {
 function StatCard({ title, value, icon, bg, border }) {
   return (
     <div className={`${bg} ${border} p-6 rounded-xl shadow-sm flex items-center justify-between transform hover:-translate-y-1 transition duration-300`}>
-      <div>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-        <h2 className="text-3xl font-extrabold text-slate-800">{value}</h2>
-      </div>
+      <div><p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p><h2 className="text-3xl font-extrabold text-slate-800">{value}</h2></div>
       <div className="bg-slate-50 p-3 rounded-lg">{icon}</div>
     </div>
   );
