@@ -3,7 +3,7 @@ import { db, ref, onValue, update } from '../firebaseRTDB'
 import { useAuth } from '../context/AuthContext'
 import { 
   AlertCircle, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, 
-  AlertTriangle, CheckCircle, Phone, Clock 
+  AlertTriangle, CheckCircle, Phone
 } from 'lucide-react'
 import { 
   BarChart, Bar, Tooltip, ResponsiveContainer 
@@ -12,7 +12,7 @@ import {
 export default function Wellbeing() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
-  const [usersData, setUsersData] = useState({}); // Store all users to find parents
+  const [usersData, setUsersData] = useState({}); // To store parent info
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -65,7 +65,7 @@ export default function Wellbeing() {
     return issues;
   };
 
-  // --- 1. FETCH USERS (For Parent Phone Numbers) ---
+  // --- 1. FETCH USERS (To get Parent Phone Numbers) ---
   useEffect(() => {
     const unsub = onValue(ref(db, "users"), (snap) => {
       setUsersData(snap.val() || {});
@@ -75,6 +75,7 @@ export default function Wellbeing() {
 
   // --- 2. FETCH & PROCESS STUDENTS ---
   useEffect(() => {
+    // Wait for usersData to be loaded slightly if possible, or just re-run when it changes
     const unsub = onValue(ref(db, "students"), (snap) => {
       const data = snap.val();
       if (!data) { setAlerts([]); setLoading(false); return; }
@@ -96,7 +97,7 @@ export default function Wellbeing() {
         if (t1.priority === 'High' || t2.priority === 'High') overallPriority = 'High';
         else if (t1.priority === 'Low' || t2.priority === 'Low') overallPriority = 'Low';
 
-        // Find Parent Phone (if available)
+        // Retrieve Parent Phone
         const parent = usersData[s.parentId];
         const parentPhone = parent?.phone || "Unavailable";
 
@@ -110,7 +111,7 @@ export default function Wellbeing() {
       setLoading(false);
     });
     return () => unsub();
-  }, [user, usersData]); // Re-run when usersData loads to ensure phones are mapped
+  }, [user, usersData]);
 
   // --- ACTIONS: Counselor Status Toggle ---
   const toggleContactStatus = async (student) => {
@@ -264,15 +265,15 @@ function CompactStudentCard({ student, userRole, onToggleStatus }) {
            </div>
            <div>
               <h3 className="text-sm font-bold text-slate-800">{student.name}</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                  <span className="text-xs text-slate-500 font-mono">{student.class}</span>
                  
-                 {/* COUNSELOR ONLY: SHOW PARENT PHONE */}
+                 {/* FEATURE: Phone Number (Counselor Only) */}
                  {userRole === 'counselor' && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                      <Phone size={10} />
-                      {parentPhone}
-                    </span>
+                   <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                     <Phone size={10} />
+                     {parentPhone}
+                   </span>
                  )}
               </div>
            </div>
@@ -305,7 +306,7 @@ function CompactStudentCard({ student, userRole, onToggleStatus }) {
              </button>
            )}
 
-           {/* Trend Info */}
+           {/* Trend Info (Hidden on very small screens) */}
            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 hidden md:flex">
               <span className="text-[10px] uppercase tracking-wider">Trend:</span>
               {getTrend()}
