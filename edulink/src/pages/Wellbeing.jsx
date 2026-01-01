@@ -111,7 +111,7 @@ export default function Wellbeing() {
   const lowPriorityList = filtered.filter(s => s.overallPriority === 'Low');
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
+    <div className="p-4 w-full mx-auto">
       
       {/* HEADER & SEARCH */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-2 z-20">

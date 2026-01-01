@@ -105,7 +105,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="p-6 w-full mx-auto space-y-8">
       
       {/* 1. HEADER CARD */}
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
