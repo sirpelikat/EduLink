@@ -98,7 +98,7 @@ export default function Dashboard() {
   const BAR_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B'];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 w-full mx-auto space-y-8">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

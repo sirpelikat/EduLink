@@ -62,7 +62,7 @@ export default function Announcements() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 w-full mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-slate-800">Announcements Board</h1>
         {/* Create Button only for Admin/Teacher */}
