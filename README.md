@@ -1,4 +1,4 @@
-# 🎓 EduLink – School Management System
+# 🎓 EduLink : School Management System
 
 EduLink is a comprehensive school management platform designed to bridge the gap between **teachers, parents, students, counselors, and administrators**. It delivers real-time insights, seamless communication, and automated reporting to enhance the overall educational experience.
 
