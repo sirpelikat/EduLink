@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { db, ref, onValue } from "../firebaseRTDB";
 import { useAuth } from "../context/AuthContext";
 import { 
@@ -12,62 +12,88 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
+  const [rawAnnouncements, setRawAnnouncements] = useState([]); // Store all raw data
   const [loading, setLoading] = useState(true);
   
   // UI States
   const [activeIndex, setActiveIndex] = useState(0); 
   const [selectedTerm, setSelectedTerm] = useState('t1'); 
 
-  // --- UPDATED SUBJECTS LIST ---
-  const ALL_SUBJECTS = ['bm', 'english', 'math', 'science', 'geografi', 'sejarah'];
+  // --- SUBJECTS CONFIGURATION ---
+  const ALL_SUBJECTS = ['bm', 'english', 'math', 'science', 'sejarah', 'geografi'];
 
   useEffect(() => {
+    if (!user) return;
+
     // 1. Fetch Students
     const unsubStudents = onValue(ref(db, "students"), (snapshot) => {
       const data = snapshot.val();
       setStudents(data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : []);
     });
 
-    // 2. Fetch Announcements
+    // 2. Fetch ALL Announcements (Filter later in render)
     const unsubAnnouncements = onValue(ref(db, "announcements"), (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-      
-      const filteredList = list.filter(ann => {
-        const target = ann.target || 'All';
-        const targetLower = target.toLowerCase();
-
-        if (user.role === 'admin') return true;
-        if (target === 'All') return true;
-        if (user.role === 'parent' && targetLower === 'parents') return true;
-        if (user.role === 'teacher') {
-            if (targetLower === 'teachers') return true;
-            if (user.class && target === user.class) return true;
-        }
-        return false;
-      });
-
-      setAnnouncements(filteredList.sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5)); 
+      // Sort by newest first
+      setRawAnnouncements(list.sort((a, b) => b.id.localeCompare(a.id))); 
       setLoading(false);
     });
 
     return () => { unsubStudents(); unsubAnnouncements(); };
-  }, [user.role, user.class]);
+  }, [user]);
+
+  // --- DYNAMIC FILTERING LOGIC ---
+  // We filter here so we always have access to the latest 'students' state
+  const announcements = rawAnnouncements.filter(ann => {
+    const target = ann.target || 'All';
+    const targetLower = target.toLowerCase();
+
+    // 1. Admin sees everything
+    if (user.role === 'admin') return true;
+
+    // 2. Everyone sees 'All' / 'School Wide'
+    if (target === 'All') return true;
+
+    // 3. Parent Logic (UPDATED)
+    if (user.role === 'parent') {
+        // General parent announcements
+        if (targetLower === 'parents') return true;
+        
+        // **Specific Class Announcements for their Children**
+        // Get list of this parent's children
+        const myKids = students.filter(s => s.parentId === user.uid);
+        // Check if announcement target matches any of their classes
+        if (myKids.some(kid => kid.class === target)) return true;
+    }
+
+    // 4. Teacher Logic
+    if (user.role === 'teacher') {
+        if (targetLower === 'teachers') return true;
+        if (user.class && target === user.class) return true;
+    }
+
+    return false;
+  }).slice(0, 5); // Take top 5 after filtering
 
   // --- AUTO SLIDER LOGIC ---
   useEffect(() => {
     if (announcements.length <= 1) return; 
     const interval = setInterval(() => setActiveIndex((c) => (c + 1) % announcements.length), 5000); 
     return () => clearInterval(interval);
-  }, [announcements.length]);
+  }, [announcements.length]); // Dependencies updated to use derived 'announcements'
+
+  // --- REDIRECT IF NOT LOGGED IN ---
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   const nextSlide = () => setActiveIndex((curr) => (curr + 1) % announcements.length);
   const prevSlide = () => setActiveIndex((curr) => (curr === 0 ? announcements.length - 1 : curr - 1));
 
   if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Loading dashboard...</div>;
 
-  // --- FILTER DATA ---
+  // --- FILTER DATA FOR DASHBOARD WIDGETS ---
   let myStudents = [];
   let title = "Dashboard";
 
@@ -95,7 +121,6 @@ export default function Dashboard() {
        if (att < 50 || cocu < 50) priority = 'High';
        else if ((att < 80 || cocu < 80) && priority !== 'High') priority = 'Low';
 
-       // Check updated subjects list
        ALL_SUBJECTS.forEach(sub => {
           const val = student[`${term}_subj_${sub}`];
           if (val !== undefined) {
@@ -112,7 +137,7 @@ export default function Dashboard() {
   const atRiskList = myStudents.map(s => ({...s, risk: analyzeStudentRisk(s)})).filter(s => s.risk);
   atRiskList.sort((a, b) => (a.risk.priority === 'High' ? -1 : 1));
 
-  // --- CHART DATA ---
+  // --- CHART DATA GENERATION ---
   const subjectAvgData = [];
   if (user.role === 'teacher') {
     const subjectLabels = { 
@@ -120,8 +145,8 @@ export default function Dashboard() {
         english: 'BI', 
         math: 'Matematik', 
         science: 'Sains',
-        geografi: 'Geografi',   // New
-        sejarah: 'Sejarah' // New
+        sejarah: 'Sejarah', 
+        geografi: 'Geografi'     
     };
     const stats = {};
     
@@ -280,6 +305,7 @@ export default function Dashboard() {
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <BookOpen size={20} className="text-indigo-500" /> Class Performance
                   </h3>
+                  {/* Term Selector */}
                   <div className="flex bg-slate-100 p-1 rounded-lg self-end sm:self-auto">
                     {['t1', 't2'].map((term) => (
                       <button 
@@ -327,7 +353,7 @@ export default function Dashboard() {
                 <tr>
                   <th className="px-4 md:px-6 py-3">Name</th>
                   <th className="px-4 md:px-6 py-3 text-right">Attd.</th>
-                  {user.role === 'parent' && <th className="px-4 md:px-6 py-3 text-right">Avg</th>}
+                  {user.role === 'parent' && <th className="px-4 md:px-6 py-3 text-right">Avg Grade</th>}
                 </tr>
               </thead>
               <tbody className="divide-y text-sm">
@@ -335,7 +361,7 @@ export default function Dashboard() {
                   let total = 0;
                   let count = 0;
                   ALL_SUBJECTS.forEach(sub => {
-                    const val = s[`t1_subj_${sub}`]; // Default view T1 average
+                    const val = s[`t1_subj_${sub}`]; 
                     if(val) { total += Number(val); count++; }
                   });
                   const avg = count > 0 ? Math.round(total / count) : 0;
