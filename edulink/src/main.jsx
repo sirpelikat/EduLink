@@ -5,7 +5,7 @@ import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import './styles/index.css';
 
-// --- TEMPORARY ADMIN SEED SCRIPT ---
+/* --- TEMPORARY ADMIN SEED SCRIPT ---
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
 import { auth, db } from './firebaseRTDB'; // Ensure this points to your RTDB config
@@ -41,7 +41,7 @@ async function createAdmin() {
 
 // Uncomment the line below to run it ONCE, then comment it out again
 // createAdmin(); 
-// -----------------------------------
+// -----------------------------------*/
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
