@@ -178,24 +178,18 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
-  // --- FILTER LOGIC (UPDATED WITH CLASS SEARCH) ---
+  // --- FILTER LOGIC ---
   const filteredUsers = users.filter(u => {
     const matchesRole = userFilter === 'all' || u.role === userFilter;
     const searchLower = searchQuery.toLowerCase();
-    
-    // UPDATED: Include u.class check
     const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
                           (u.email || '').toLowerCase().includes(searchLower) ||
                           (u.class || '').toLowerCase().includes(searchLower);
-                          
     return matchesRole && matchesSearch;
   });
 
-  // NEW: Filter Students too
   const filteredStudents = students.filter(s => {
     const searchLower = searchQuery.toLowerCase();
-    
-    // UPDATED: Include s.class check
     return (s.name || '').toLowerCase().includes(searchLower) ||
            (s.class || '').toLowerCase().includes(searchLower);
   });
@@ -220,29 +214,33 @@ export default function Admin() {
   );
 
   return (
-    <div className="p-6 w-full mx-auto space-y-8">
-      {/* HEADER */}
+    // Updated padding for mobile friendliness
+    <div className="p-4 md:p-6 w-full mx-auto space-y-6 md:space-y-8 animate-fade-in">
+      
+      {/* HEADER: Flexible layout for mobile */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-slate-800 p-3 rounded-xl shadow-lg shadow-slate-200"><Shield className="text-white" size={28} /></div>
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Admin Portal</h1>
-            <p className="text-slate-500 font-medium">Manage users, students, and system access</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">Admin Portal</h1>
+            <p className="text-sm md:text-base text-slate-500 font-medium">Manage users, students, and system access</p>
           </div>
         </div>
-        <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
-          <button onClick={() => { setActiveTab('users'); setSearchQuery(''); }} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Users size={16} /> Manage Logins
+        
+        {/* Toggle Buttons: Full width on mobile */}
+        <div className="w-full md:w-auto bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
+          <button onClick={() => { setActiveTab('users'); setSearchQuery(''); }} className={`flex-1 md:flex-none justify-center flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <Users size={16} /> <span className="hidden sm:inline">Manage</span> Logins
           </button>
-          <button onClick={() => { setActiveTab('students'); setSearchQuery(''); }} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <GraduationCap size={16} /> Manage Students
+          <button onClick={() => { setActiveTab('students'); setSearchQuery(''); }} className={`flex-1 md:flex-none justify-center flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='students' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <GraduationCap size={16} /> <span className="hidden sm:inline">Manage</span> Students
           </button>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-6 md:gap-8 lg:grid-cols-3">
         {/* LEFT COLUMN: FORMS */}
-        <div className="lg:col-span-1 space-y-8">
+        <div className="lg:col-span-1 space-y-6 md:space-y-8">
           {activeTab === 'users' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
@@ -292,9 +290,9 @@ export default function Admin() {
               {generatedCreds && (
                 <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl animate-fade-in">
                   <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm mb-2"><CheckCircle size={16} /> Account Created</div>
-                  <div className="text-xs space-y-1 text-emerald-800">
-                    <p>Email: <span className="font-mono bg-white px-1 rounded">{generatedCreds.email}</span></p>
-                    <p>Pass: <span className="font-mono bg-white px-1 rounded">{generatedCreds.password}</span></p>
+                  <div className="text-xs space-y-1 text-emerald-800 break-all">
+                    <p>Email: <span className="font-mono bg-white px-1 rounded select-all">{generatedCreds.email}</span></p>
+                    <p>Pass: <span className="font-mono bg-white px-1 rounded select-all">{generatedCreds.password}</span></p>
                   </div>
                 </div>
               )}
@@ -323,6 +321,7 @@ export default function Admin() {
               </form>
             </div>
           )}
+          
           {/* Bulk Import UI */}
           <div className="bg-slate-800 p-6 rounded-2xl shadow-lg text-white">
             <div className="flex items-center gap-2 mb-4"><FileSpreadsheet className="text-orange-400" size={20} /><h3 className="font-bold">Bulk Import Tool</h3></div>
@@ -337,28 +336,30 @@ export default function Admin() {
         </div>
 
         {/* RIGHT COLUMN: LIST */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[500px] md:h-[600px]">
           
-          {/* LIST HEADER with FILTERS & SEARCH */}
-          <div className="p-6 border-b border-slate-50 space-y-4">
-            <div className="flex justify-between items-center">
+          {/* LIST HEADER */}
+          <div className="p-4 md:p-6 border-b border-slate-50 space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <h2 className="text-lg font-bold text-slate-800">
                 {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${filteredStudents.length})`}
               </h2>
               
-              {/* Role Filters */}
+              {/* Role Filters - Scrollable on mobile */}
               {activeTab === 'users' && (
-                <div className="flex bg-slate-100 rounded-lg p-1">
-                  {['all', 'parent', 'teacher', 'counselor', 'admin'].map(role => (
-                    <button key={role} onClick={() => setUserFilter(role)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${userFilter === role ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                      {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
-                    </button>
-                  ))}
+                <div className="w-full md:w-auto overflow-x-auto no-scrollbar">
+                  <div className="flex bg-slate-100 rounded-lg p-1 min-w-max">
+                    {['all', 'parent', 'teacher', 'counselor', 'admin'].map(role => (
+                      <button key={role} onClick={() => setUserFilter(role)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${userFilter === role ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                        {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* SEARCH BAR (Available for BOTH Users and Students) */}
+            {/* SEARCH BAR */}
             <div className="relative">
               <Search size={16} className="absolute left-3 top-3 text-slate-400" />
               <input 
@@ -376,12 +377,12 @@ export default function Admin() {
             </div>
           </div>
           
-          <ul className="flex-1 overflow-y-auto p-4 space-y-2">
+          <ul className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
             {activeTab === 'users' 
               ? filteredUsers.map(u => (
-                  <li key={u.uid} className="group flex justify-between items-center p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
-                    <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                  <li key={u.uid} className="group flex justify-between items-center p-3 md:p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
+                    <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+                      <div className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs md:text-sm ${
                         u.role === 'admin' ? 'bg-purple-100 text-purple-600' :
                         u.role === 'teacher' ? 'bg-blue-100 text-blue-600' :
                         u.role === 'counselor' ? 'bg-pink-100 text-pink-600' :
@@ -389,10 +390,10 @@ export default function Admin() {
                       }`}>
                         {u.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800">{u.name}</p>
-                        <div className="text-xs text-slate-500 font-mono flex items-center gap-1">
-                          {u.email} • <span className="uppercase">{u.role}</span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-sm md:text-base truncate">{u.name}</p>
+                        <div className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-1">
+                          <span className="truncate">{u.email}</span> • <span className="uppercase">{u.role}</span>
                           
                           {/* TEACHER CLASS EDITING */}
                           {u.role === 'teacher' && (
@@ -409,25 +410,24 @@ export default function Admin() {
                               </span>
                             )
                           )}
-                          
-                          {u.phone && <span className="text-slate-400"> • {u.phone}</span>}
                         </div>
                       </div>
                     </div>
-                    <button onClick={()=>deleteUser(u.uid)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                    {/* Delete button always visible on mobile, hidden on desktop until hover */}
+                    <button onClick={()=>deleteUser(u.uid)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                       <Trash2 size={18} />
                     </button>
                   </li>
                 ))
               : filteredStudents.map(s => (
-                  <li key={s.id} className="group flex justify-between items-center p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                  <li key={s.id} className="group flex justify-between items-center p-3 md:p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
+                    <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+                      <div className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs md:text-sm">
                         {s.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800">{s.name}</p>
-                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-sm md:text-base truncate">{s.name}</p>
+                        <div className="text-xs text-slate-500 flex flex-wrap items-center gap-1">
                           
                           {/* STUDENT CLASS EDITING */}
                           {editingId === s.id ? (
@@ -443,11 +443,12 @@ export default function Admin() {
                             </span>
                           )}
                           
-                          <span> • Parent: {users.find(u=>u.uid===s.parentId)?.name || <span className="text-red-500">Unlinked</span>}</span>
+                          <span className="truncate"> • Parent: {users.find(u=>u.uid===s.parentId)?.name || <span className="text-red-500">Unlinked</span>}</span>
                         </div>
                       </div>
                     </div>
-                    <button onClick={()=>deleteStudent(s.id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                    {/* Delete button always visible on mobile */}
+                    <button onClick={()=>deleteStudent(s.id)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                       <Trash2 size={18} />
                     </button>
                   </li>

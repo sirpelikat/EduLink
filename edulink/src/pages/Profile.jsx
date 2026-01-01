@@ -105,54 +105,62 @@ export default function Profile() {
   };
 
   return (
-    <div className="p-6 w-full mx-auto space-y-8">
+    // Updated Main Container: Reduced padding on mobile (p-4) vs desktop (p-6)
+    <div className="p-4 md:p-6 w-full mx-auto space-y-6 md:space-y-8 animate-fade-in">
       
       {/* 1. HEADER CARD */}
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-        <div className="flex items-center gap-6 z-10">
-          <div className="h-20 w-20 bg-slate-100 rounded-2xl flex items-center justify-center text-3xl font-bold text-slate-400 shadow-inner">
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+        {/* Blob hidden on mobile to avoid visual clutter */}
+        <div className="hidden md:block absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+        
+        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 z-10 w-full md:w-auto">
+          {/* Responsive Avatar Size */}
+          <div className="h-16 w-16 md:h-20 md:w-20 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-bold text-slate-400 shadow-inner">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="text-center md:text-left">
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">{user?.name}</h1>
-            <div className="flex items-center gap-2 text-slate-500 mt-1 justify-center md:justify-start">
-              <Mail size={14} /> <span className="text-sm font-medium">{user?.email}</span>
+            {/* Responsive Text Size */}
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">{user?.name}</h1>
+            <div className="flex flex-col md:flex-row items-center gap-1 md:gap-4 mt-1">
+                <div className="flex items-center gap-2 text-slate-500">
+                    <Mail size={14} /> <span className="text-sm font-medium">{user?.email}</span>
+                </div>
+                {/* Display Phone if exists */}
+                {user?.phone && (
+                <div className="flex items-center gap-2 text-slate-500">
+                    <Phone size={14} /> <span className="text-sm font-medium">{user?.phone}</span>
+                </div>
+                )}
             </div>
-            {/* Display Phone if exists */}
-            {user?.phone && (
-              <div className="flex items-center gap-2 text-slate-500 mt-1 justify-center md:justify-start">
-                <Phone size={14} /> <span className="text-sm font-medium">{user?.phone}</span>
-              </div>
-            )}
           </div>
         </div>
-        <div className={`z-10 px-5 py-2 rounded-full border-2 text-sm font-extrabold uppercase tracking-widest shadow-sm ${getRoleBadge(user?.role)}`}>
+        {/* Badge spans full width on mobile */}
+        <div className={`z-10 px-5 py-2 rounded-full border-2 text-xs md:text-sm font-extrabold uppercase tracking-widest shadow-sm w-full md:w-auto text-center ${getRoleBadge(user?.role)}`}>
           {user?.role} Portal
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-6 md:gap-8 md:grid-cols-2">
         
         {/* 2. EDIT DETAILS CARD */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-            <User className="text-blue-600" size={20} /> <h2 className="text-xl font-bold text-slate-800">Profile Details</h2>
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
+          <div className="flex items-center gap-2 mb-4 md:mb-6 border-b border-slate-50 pb-4">
+            <User className="text-blue-600" size={20} /> <h2 className="text-lg md:text-xl font-bold text-slate-800">Profile Details</h2>
           </div>
-          <form onSubmit={handleUpdateProfile} className="space-y-5 flex-1">
+          <form onSubmit={handleUpdateProfile} className="space-y-4 md:space-y-5 flex-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Role</label>
                 <div className="relative">
                   <Shield size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input type="text" disabled value={user?.role?.toUpperCase() || ''} className={`${inputStyle} opacity-60 cursor-not-allowed uppercase`}/>
+                  <input type="text" disabled value={user?.role?.toUpperCase() || ''} className={`${inputStyle} opacity-60 cursor-not-allowed uppercase text-xs md:text-sm`}/>
                 </div>
               </div>
               <div>
                 <label className={labelStyle}>Email</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input type="text" disabled value={user?.email || ''} className={`${inputStyle} opacity-60 cursor-not-allowed`}/>
+                  <input type="text" disabled value={user?.email || ''} className={`${inputStyle} opacity-60 cursor-not-allowed text-xs md:text-sm text-ellipsis overflow-hidden`}/>
                 </div>
               </div>
             </div>
@@ -199,7 +207,7 @@ export default function Profile() {
             <div className="pt-2"></div>
             {profileStatus && (
               <div className={`text-center text-sm font-semibold p-3 rounded-xl animate-fade-in ${profileStatus === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                {profileStatus === 'success' ? '✅ Profile updated successfully!' : profileStatus}
+                {profileStatus === 'success' ? '✅ Profile updated!' : profileStatus}
               </div>
             )}
             <button disabled={loading} className="w-full bg-slate-800 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-xl hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-auto">
@@ -209,11 +217,11 @@ export default function Profile() {
         </div>
 
         {/* 3. SECURITY CARD */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 h-fit">
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
-            <Lock className="text-red-500" size={20} /> <h2 className="text-xl font-bold text-slate-800">Security</h2>
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 h-fit">
+          <div className="flex items-center gap-2 mb-4 md:mb-6 border-b border-slate-50 pb-4">
+            <Lock className="text-red-500" size={20} /> <h2 className="text-lg md:text-xl font-bold text-slate-800">Security</h2>
           </div>
-          <form onSubmit={handleChangePassword} className="space-y-5">
+          <form onSubmit={handleChangePassword} className="space-y-4 md:space-y-5">
             <div>
               <label className={labelStyle}>Current Password</label>
               <div className="relative">
@@ -231,7 +239,7 @@ export default function Profile() {
             <div className="pt-2"></div>
             {passStatus && (
               <div className={`text-center text-sm font-semibold p-3 rounded-xl animate-fade-in ${passStatus === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                {passStatus === 'success' ? '✅ Password changed successfully!' : passStatus}
+                {passStatus === 'success' ? '✅ Password updated!' : passStatus}
               </div>
             )}
             <button disabled={loading} className="w-full bg-rose-500 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-xl hover:bg-rose-600 hover:shadow-rose-200 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -243,24 +251,24 @@ export default function Profile() {
 
       {/* 4. MY CHILDREN (PARENTS ONLY) */}
       {user?.role === 'parent' && (
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 animate-fade-in">
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 animate-fade-in">
+          <div className="flex items-center gap-2 mb-4 md:mb-6 border-b border-slate-50 pb-4">
             <GraduationCap className="text-amber-500" size={20} /> 
-            <h2 className="text-xl font-bold text-slate-800">My Children</h2>
+            <h2 className="text-lg md:text-xl font-bold text-slate-800">My Children</h2>
           </div>
 
           {myChildren.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {myChildren.map((child) => (
-                <div key={child.id} className="p-4 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all flex items-center gap-4 group">
-                  <div className="h-12 w-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-lg border-2 border-white shadow-sm">
+                <div key={child.id} className="p-4 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all flex items-center gap-4 group cursor-pointer">
+                  <div className="h-12 w-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-lg border-2 border-white shadow-sm shrink-0">
                     {child.name.charAt(0)}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 group-hover:text-amber-700 transition-colors">{child.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-800 group-hover:text-amber-700 transition-colors truncate">{child.name}</h3>
                     <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-semibold">{child.class}</span>
-                      <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-semibold shrink-0">{child.class}</span>
+                      <span className="flex items-center gap-1 text-emerald-600 font-bold shrink-0">
                         <Clock size={12}/> {child.attendance}% Att.
                       </span>
                     </div>
