@@ -530,11 +530,11 @@ export default function Reports() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
                             { label: "Bahasa Melayu", key: "subj_bm", icon: "📖" },
-                            { label: "English", key: "subj_english", icon: "🔤" },
-                            { label: "Mathematics", key: "subj_math", icon: "📐" },
-                            { label: "Science", key: "subj_science", icon: "🧬" },
-                            { label: "Sejarah", key: "subj_sejarah", icon: "🏛️" },
-                            { label: "Geografi", key: "subj_geografi", icon: "🌍" }
+                            { label: "Bahasa Inggeris", key: "subj_english", icon: "🔤" },
+                            { label: "Matematik", key: "subj_math", icon: "📐" },
+                            { label: "Sains", key: "subj_science", icon: "🧬" },
+                            { label: "Pendidikan Islam/Moral", key: "subj_sejarah", icon: "🏛️" },
+                            { label: "Pendiikan Jasmani", key: "subj_geografi", icon: "🌍" }
                         ].map((subj) => {
                             const val = getValue(selectedStudent.id, subj.key);
                             const grade = getLetterGrade(val || 0);
