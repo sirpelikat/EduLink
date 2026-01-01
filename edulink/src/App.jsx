@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import { logout } from './firebaseRTDB.js';
-import { Menu, X, Github, Linkedin, Code } from 'lucide-react';
+import { Menu, X, Github, Linkedin, Code } from 'lucide-react'; // Import Menu/X icons
 
-// Import the Logo
+// Import Logo & Assets
 import edulinkLogo from './assets/edulink_logo.png'; 
 import slide1 from './assets/slide1.png';
 import slide2 from './assets/slide2.png';
@@ -39,16 +39,17 @@ function Welcome() {
   return (
     <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] w-full bg-white">
       {/* LEFT HALF: CONTENT */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 md:px-16 lg:px-24 py-12 order-2 lg:order-1">
-        <div className="w-full max-w-4xl space-y-8 animate-fade-in-up">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 md:px-16 lg:px-24 py-12 order-2 lg:order-1">
+        <div className="max-w-3xl space-y-6 animate-fade-in-up">
           <div className="inline-block px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 font-bold text-xs uppercase tracking-wider mb-2">
             Welcome to EduLink
           </div>
+          {/* Responsive Text Size: text-5xl on mobile, text-7xl on desktop */}
           <h1 className="text-5xl md:text-7xl font-extrabold text-slate-800 tracking-tight leading-tight">
              The Future of <br /> 
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">School Management</span>
           </h1>
-          <p className="text-xl text-slate-500 leading-relaxed">
+          <p className="text-lg md:text-xl text-slate-500 leading-relaxed">
             EduLink bridges the gap between teachers, parents, and students with real-time insights, seamless communication, and automated reporting.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
@@ -60,7 +61,7 @@ function Welcome() {
       </div>
 
       {/* RIGHT HALF: CAROUSEL */}
-      <div className="w-full lg:w-1/2 relative h-[50vh] lg:h-auto bg-slate-900 overflow-hidden order-1 lg:order-2">
+      <div className="w-full lg:w-1/2 relative h-[40vh] lg:h-auto bg-slate-900 overflow-hidden order-1 lg:order-2">
          {CAROUSEL_IMAGES.map((img, index) => (
             <img 
               key={index} 
@@ -80,70 +81,73 @@ export default function App() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // State for Mobile Menu
 
   async function handleLogout() {
     await logout();
     navigate('/login');
-    setIsMenuOpen(false);
+    setIsMenuOpen(false); // Close menu on logout
   }
 
+  // Close mobile menu whenever route changes
   useEffect(() => { setIsMenuOpen(false); }, [location]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
       
-      {/* HEADER - Updated to w-full */}
+      {/* HEADER */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="w-full px-6 py-4"> {/* Changed from max-w-7xl to w-full */}
+        <div className="w-full px-6 py-4">
           <div className="flex items-center justify-between">
+            {/* Logo */}
             <Link to="/EduLink" className="font-extrabold text-2xl text-blue-600 tracking-tight flex items-center gap-3">
               <img src={edulinkLogo} alt="EduLink" className="h-8 w-8 object-contain" /> EduLink
             </Link>
 
-            <div className="flex items-center gap-6">
-              {/* Desktop Nav */}
-              <nav className="hidden md:flex items-center gap-6">
-                {user ? (
-                  <>
-                    <Link to="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Dashboard</Link>
-                    <Link to="/reports" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Reports</Link>
-                    <Link to="/announcements" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Announcements</Link>
-                    <Link to="/wellbeing" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Well-being</Link>
-                    {user.role === 'admin' && <Link to="/admin" className="text-sm font-bold text-purple-600 hover:text-purple-800">Admin</Link>}
-                    <div className="h-5 w-px bg-slate-200"></div>
-                    <Link to="/profile" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Profile</Link>
-                    <button onClick={handleLogout} className="text-sm font-semibold text-red-500 hover:text-red-700">Sign out</button>
-                  </>
-                ) : (
-                  <Link to="/login" className="text-sm font-bold text-blue-600 hover:text-blue-800">Sign in</Link>
-                )}
-              </nav>
+            {/* Desktop Navigation (Hidden on Mobile) */}
+            <nav className="hidden md:flex items-center gap-6">
+              {user ? (
+                <>
+                  <Link to="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Dashboard</Link>
+                  <Link to="/reports" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Reports</Link>
+                  <Link to="/announcements" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Announcements</Link>
+                  <Link to="/wellbeing" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Well-being</Link>
+                  {user.role === 'admin' && <Link to="/admin" className="text-sm font-bold text-purple-600 hover:text-purple-800">Admin</Link>}
+                  <div className="h-5 w-px bg-slate-200"></div>
+                  <Link to="/profile" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Profile</Link>
+                  <button onClick={handleLogout} className="text-sm font-semibold text-red-500 hover:text-red-700">Sign out</button>
+                </>
+              ) : (
+                <Link to="/login" className="text-sm font-bold text-blue-600 hover:text-blue-800">Sign in</Link>
+              )}
+            </nav>
 
-              {/* Mobile Menu Button */}
-              <button className="md:hidden text-slate-600 hover:text-blue-600" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
-              </button>
-            </div>
+            {/* Mobile Menu Button (Visible only on small screens) */}
+            <button 
+              className="md:hidden text-slate-600 hover:text-blue-600 p-2"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            </button>
           </div>
 
           {/* Mobile Menu Dropdown */}
           {isMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 border-t border-slate-100">
-              <nav className="flex flex-col gap-4 mt-4">
+            <div className="md:hidden mt-4 pb-4 border-t border-slate-100 animate-fade-in">
+              <nav className="flex flex-col gap-4 mt-4 text-center">
                 {user ? (
                   <>
-                    <Link to="/dashboard" className="text-slate-600 font-semibold">Dashboard</Link>
-                    <Link to="/reports" className="text-slate-600 font-semibold">Reports</Link>
-                    <Link to="/announcements" className="text-slate-600 font-semibold">Announcements</Link>
-                    <Link to="/wellbeing" className="text-slate-600 font-semibold">Well-being</Link>
-                    {user.role === 'admin' && <Link to="/admin" className="text-purple-600 font-bold">Admin Panel</Link>}
-                    <hr className="border-slate-100" />
-                    <Link to="/profile" className="text-slate-600 font-semibold">My Profile</Link>
-                    <button onClick={handleLogout} className="text-red-500 font-semibold text-left">Sign out</button>
+                    <Link to="/dashboard" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Dashboard</Link>
+                    <Link to="/reports" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Reports</Link>
+                    <Link to="/announcements" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Announcements</Link>
+                    <Link to="/wellbeing" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Well-being</Link>
+                    {user.role === 'admin' && <Link to="/admin" className="text-purple-600 font-bold py-2 hover:bg-purple-50 rounded-lg">Admin Panel</Link>}
+                    <hr className="border-slate-100 my-2" />
+                    <Link to="/profile" className="text-slate-600 font-semibold py-2">My Profile</Link>
+                    <button onClick={handleLogout} className="text-red-500 font-semibold py-2">Sign out</button>
                   </>
                 ) : (
-                  <Link to="/login" className="bg-blue-50 text-blue-600 font-bold text-center py-3 rounded-xl">Sign in Portal</Link>
+                  <Link to="/login" className="bg-blue-50 text-blue-600 font-bold py-3 rounded-xl">Sign in Portal</Link>
                 )}
               </nav>
             </div>
@@ -151,8 +155,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN CONTENT - Updated to w-full */}
-      <main className="w-full flex-grow px-6 py-8"> {/* Changed from max-w-7xl to w-full */}
+      {/* MAIN CONTENT */}
+      <main className="w-full flex-grow px-4 md:px-6 py-6 md:py-8">
         <Routes>
           <Route path="/" element={<Navigate to="/EduLink" replace />} />
           <Route path="/EduLink" element={<Welcome />} />
@@ -167,10 +171,10 @@ export default function App() {
         </Routes>
       </main>
 
-      {/* FOOTER - Updated to w-full */}
+      {/* FOOTER */}
       <footer className="bg-white border-t border-slate-200 mt-auto">
-        <div className="w-full px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4"> {/* Changed from max-w-7xl to w-full */}
-          <div className="flex items-center gap-3">
+        <div className="w-full px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center gap-3">
             <div className="bg-slate-900 text-white p-2 rounded-lg"><Code size={20} /></div>
             <div>
               <p className="text-sm font-bold text-slate-800">Developed by Fantastic 404</p>
