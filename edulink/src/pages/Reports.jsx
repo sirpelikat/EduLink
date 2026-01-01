@@ -193,17 +193,9 @@ export default function Reports() {
   );
 
   return (
-<<<<<<< Updated upstream
     <div className="p-6 max-w-7xl mx-auto relative">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-slate-800">Academic Reports</h1>
-=======
-    <div className="min-h-screen bg-slate-50/50 pb-20">
-      {/* --- DECORATIVE BACKGROUND --- */}
-      <div className="absolute top-0 left-0 w-full h-72 bg-gradient-to-r from-indigo-700 to-violet-700 -z-10 shadow-lg"></div>
-
-      <div className="w-full mx-auto px-6 pt-12">
->>>>>>> Stashed changes
         
         <div className="bg-slate-200 p-1 rounded-lg flex gap-1">
             <button onClick={() => setCurrentTerm(1)} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${currentTerm === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Term 1</button>
