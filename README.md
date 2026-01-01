@@ -1,121 +1,217 @@
-Based on the source code provided, specifically the default Vite README and the actual application logic in src/, here is a comprehensive README.md tailored for the EduLink project.
+---
 
-This README replaces the generic template with project-specific details, features, and setup instructions.
+# 🎓 EduLink – School Management System
 
-EduLink - School Management System
-EduLink is a comprehensive school management platform designed to bridge the gap between teachers, parents, students, and administrators. It provides real-time insights, seamless communication, and automated reporting to enhance the educational experience.
+EduLink is a comprehensive school management platform designed to bridge the gap between **teachers, parents, students, counselors, and administrators**. It delivers real-time insights, seamless communication, and automated reporting to enhance the overall educational experience.
 
-🚀 Key Features
-EduLink features a role-based access control system catering to four distinct user types: Admin, Teacher, Parent, and Counselor.
+---
 
-📊 Dashboard
-Role-Specific Views: tailored content for each user role (e.g., "My Family" for parents, "Class Overview" for teachers).
+## 🚀 Key Features
 
-Announcement Carousel: Interactive slider for school-wide or class-specific announcements.
+EduLink implements a **role-based access control system** with four distinct user roles:
 
-Performance Metrics: Visual charts (using Recharts) displaying class subject averages and attendance trends.
+* **Admin**
+* **Teacher**
+* **Parent**
+* **Counselor**
 
-Risk Monitoring: Automated detection of students at risk based on attendance and grades.
+Each role receives a tailored interface and access to relevant features only.
 
-📝 Academic Reports
-Digital Report Cards: View and manage detailed academic performance for Term 1 and Term 2.
+---
 
-Grading System: Subject breakdown with automated letter grading (A-F) and ranking calculations (Class & Year positions).
+## 📊 Dashboard
 
-E-Signatures: Parents can digitally sign report cards to acknowledge receipt.
+* **Role-Specific Views**
+  Personalized dashboards for each role
+  *(e.g., “My Family” for parents, “Class Overview” for teachers)*
 
-Teacher Tools: Edit mode for teachers to input marks, attendance, and behavioral remarks.
+* **Announcement Carousel**
+  Interactive slider displaying school-wide or class-specific announcements
 
-📢 Announcements
-Targeted Communication: Create posts visible to the whole school or specific classes only.
+* **Performance Metrics**
+  Visual charts powered by **Recharts** showing:
 
-Management: Admins and Teachers can create, edit, and delete announcements.
+  * Subject averages
+  * Attendance trends
 
-Search & Filter: Easily find past announcements with real-time search.
+* **Risk Monitoring**
+  Automated detection of students at risk based on attendance and academic performance
 
-❤️ Well-being Monitor
-Early Warning System: Algorithms analyze grades and attendance to flag students as "High" or "Low" priority risk.
+---
 
-Counselor Tools: Track which students have been contacted and log intervention status.
+## 📝 Academic Reports
 
-Trend Analysis: Visual indicators showing if a student's performance is improving or declining between terms.
+* **Digital Report Cards**
+  View and manage academic performance for **Term 1** and **Term 2**
 
-🛡️ Admin Portal
-User Management: Create accounts for Parents, Teachers, and Counselors.
+* **Automated Grading System**
 
-Student Records: Enroll students and link them to parent accounts.
+  * Subject breakdown
+  * Letter grading (A–F)
+  * Class & year ranking calculations
 
-Bulk Import: CSV upload tool to batch create families and teacher accounts.
+* **E-Signatures**
+  Parents can digitally sign report cards to acknowledge receipt
 
-🛠️ Tech Stack
-Frontend: React 19, Vite
+* **Teacher Tools**
+  Teachers can:
 
-Styling: Tailwind CSS v4
+  * Enter and edit marks
+  * Record attendance
+  * Add behavioral remarks
 
-Routing: React Router v7
+---
 
-Backend / Auth: Firebase v12 (Authentication & Realtime Database)
+## 📢 Announcements
 
-Visualization: Recharts
+* **Targeted Communication**
+  Publish announcements for:
 
-Icons: Lucide React
+  * The entire school
+  * Specific classes only
 
-⚙️ Installation & Setup
-Clone the repository
+* **Content Management**
+  Admins and teachers can:
 
-Bash
+  * Create
+  * Edit
+  * Delete announcements
 
+* **Search & Filter**
+  Real-time search to quickly locate past announcements
+
+---
+
+## ❤️ Well-being Monitor
+
+* **Early Warning System**
+  Intelligent algorithms analyze:
+
+  * Attendance
+  * Academic performance
+    to flag students as **High Risk** or **Low Risk**
+
+* **Counselor Tools**
+
+  * Track contacted students
+  * Log intervention progress and status
+
+* **Trend Analysis**
+  Visual indicators showing improvement or decline between academic terms
+
+---
+
+## 🛡️ Admin Portal
+
+* **User Management**
+  Create and manage accounts for:
+
+  * Parents
+  * Teachers
+  * Counselors
+
+* **Student Records**
+
+  * Enroll students
+  * Link students to parent accounts
+
+* **Bulk Import**
+  CSV upload support for batch creation of users and families
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer        | Technology                                        |
+| ------------ | ------------------------------------------------- |
+| Frontend     | React 19, Vite                                    |
+| Styling      | Tailwind CSS v4                                   |
+| Routing      | React Router v7                                   |
+| Backend/Auth | Firebase v12 (Authentication & Realtime Database) |
+| Charts       | Recharts                                          |
+| Icons        | Lucide React                                      |
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1️⃣ Clone the Repository
+
+```bash
 git clone https://github.com/sirpelikat/EduLink.git
 cd edulink
-Install dependencies
+```
 
-Bash
+### 2️⃣ Install Dependencies
 
+```bash
 npm install
-Configure Firebase
+```
 
-Create a project in the Firebase Console.
+### 3️⃣ Configure Firebase
 
-Enable Authentication (Email/Password provider).
+1. Create a project in the **Firebase Console**
+2. Enable:
 
-Enable Realtime Database.
+   * **Authentication** (Email/Password)
+   * **Realtime Database**
+3. Update `src/firebaseConfig.js` with your Firebase credentials
 
-Update src/firebaseConfig.js with your specific Firebase credentials.
+### 4️⃣ Run Development Server
 
-Run the development server
-
-Bash
-
+```bash
 npm run dev
-Build for production
+```
 
-Bash
+### 5️⃣ Build for Production
 
+```bash
 npm run build
-📂 Project Structure
-Plaintext
+```
 
+---
+
+## 📂 Project Structure
+
+```plaintext
 src/
 ├── assets/          # Static images (logos, slides)
 ├── context/         # React Context (AuthContext)
-├── pages/           # Main Route Components
+├── pages/           # Main route components
 │   ├── Admin.jsx          # User & Student Management
 │   ├── Announcements.jsx  # News Feed
-│   ├── Dashboard.jsx      # Main Overview & Charts
+│   ├── Dashboard.jsx      # Overview & Charts
 │   ├── Login.jsx          # Authentication Page
 │   ├── Profile.jsx        # User Profile & Settings
 │   ├── Reports.jsx        # Academic Results
 │   └── Wellbeing.jsx      # Student Risk Monitoring
-├── styles/          # CSS & Tailwind setup
+├── styles/          # Tailwind & global styles
 ├── App.jsx          # Main Layout & Routing
 └── firebaseRTDB.js  # Database Helper Functions
-👤 User Roles & Access
-Admin: Full access to all modules, user creation, and school-wide settings.
+```
 
-Teacher: Manage assigned class, input marks, post class announcements.
+---
 
-Counselor: View "At-Risk" students and manage intervention logs.
+## 👤 User Roles & Access
 
-Parent: View own children's reports, attendance, and specific announcements.
+* **Admin**
+  Full system access, user management, and school-wide configuration
 
-Developed by Fantastic 404 © 2026
+* **Teacher**
+  Manage assigned classes, input grades, and post class announcements
+
+* **Counselor**
+  Monitor at-risk students and manage intervention records
+
+* **Parent**
+  View children’s academic reports, attendance, and announcements
+
+---
+
+## ©️ Credits
+
+Developed by **Fantastic 404** © 2026
+
+---
+
+Just tell me 👍
