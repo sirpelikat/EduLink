@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { db, ref, onValue, update } from '../firebaseRTDB'
 import { useAuth } from '../context/AuthContext'
 import { 
-  AlertCircle, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Search, X, 
-  AlertTriangle, CheckCircle, Phone, ListFilter, CheckSquare, Square, Clock
-} from 'lucide-react'
+  AlertCircle, ChevronDown, TrendingUp, TrendingDown, Minus, Search, X, 
+  AlertTriangle, CheckCircle, Phone, ListFilter, CheckSquare, Square, Clock, Undo2
+} from 'lucide-react' // Added Undo2 icon
 import { 
   BarChart, Bar, Tooltip, ResponsiveContainer 
 } from 'recharts';
@@ -95,7 +95,6 @@ export default function Wellbeing() {
         const parent = usersData[s.parentId];
         const parentPhone = parent?.phone || "Unavailable";
         
-        // Ensure caseStatus exists
         const caseStatus = s.caseStatus || 'Unresolved'; 
 
         return { ...s, t1, t2, overallPriority, parentPhone, caseStatus };
@@ -111,7 +110,7 @@ export default function Wellbeing() {
 
   // --- ACTIONS ---
   
-  // 1. Move from Pending -> Contacted (Reset case to Unresolved if needed)
+  // 1. Mark as Contacted
   const markAsContacted = async (student) => {
     try {
       await update(ref(db, `students/${student.id}`), {
@@ -122,7 +121,16 @@ export default function Wellbeing() {
     } catch (error) { alert("Error updating status."); }
   };
 
-  // 2. Toggle Case Resolution (Resolved <-> Unresolved)
+  // 2. Mark as Pending (Uncontact) - NEW
+  const markAsPending = async (student) => {
+    try {
+      await update(ref(db, `students/${student.id}`), {
+        contactStatus: 'not_contacted'
+      });
+    } catch (error) { alert("Error updating status."); }
+  };
+
+  // 3. Toggle Resolution
   const toggleResolution = async (student) => {
     const newResolution = student.caseStatus === 'Resolved' ? 'Unresolved' : 'Resolved';
     try {
@@ -134,7 +142,6 @@ export default function Wellbeing() {
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading Well-Being data...</div>;
 
-  // --- FILTER LOGIC ---
   const allFiltered = alerts.filter(s => 
     !searchTerm.trim() || 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -144,7 +151,6 @@ export default function Wellbeing() {
   const pendingList = allFiltered.filter(s => s.contactStatus !== 'contacted');
   const contactedList = allFiltered.filter(s => s.contactStatus === 'contacted');
 
-  // Split Contacted List into Resolved vs Unresolved
   const unresolvedList = contactedList.filter(s => s.caseStatus !== 'Resolved');
   const resolvedList = contactedList.filter(s => s.caseStatus === 'Resolved');
 
@@ -200,7 +206,7 @@ export default function Wellbeing() {
 
       <div className="space-y-8 min-h-[400px]">
         
-        {/* VIEW 1: PENDING CONTACT (High/Low Priority) */}
+        {/* VIEW 1: PENDING CONTACT */}
         {viewStatus === 'not_contacted' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
              {pendingList.length === 0 ? (
@@ -259,11 +265,11 @@ export default function Wellbeing() {
           </div>
         )}
 
-        {/* VIEW 2: CONTACTED (Unresolved vs Resolved) */}
+        {/* VIEW 2: CONTACTED */}
         {viewStatus === 'contacted' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
              
-             {/* SECTION A: UNRESOLVED CASES */}
+             {/* UNRESOLVED CASES */}
              <div>
                 <div className="flex items-center gap-2 px-1 mb-3 border-b border-blue-100 pb-2">
                    <Clock size={18} className="text-blue-500" />
@@ -283,13 +289,15 @@ export default function Wellbeing() {
                         actionIcon={CheckCircle}
                         actionColor="emerald"
                         isContactedView={true}
+                        // Secondary action: Move back to pending
+                        onSecondaryAction={() => markAsPending(s)}
                       />
                     ))}
                   </div>
                 )}
              </div>
 
-             {/* SECTION B: RESOLVED CASES */}
+             {/* RESOLVED CASES */}
              <div className="opacity-80 hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-2 px-1 mb-3 border-b border-slate-200 pb-2">
                    <CheckCircle size={18} className="text-emerald-600" />
@@ -309,6 +317,8 @@ export default function Wellbeing() {
                         actionIcon={Minus}
                         actionColor="slate"
                         isContactedView={true}
+                        // Secondary action: Move back to pending
+                        onSecondaryAction={() => markAsPending(s)}
                       />
                     ))}
                   </div>
@@ -332,14 +342,13 @@ function EmptyState({ msg, icon: Icon }) {
 }
 
 // --- CARD COMPONENT ---
-function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIcon: ActionIcon, actionColor, isContactedView }) {
+function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIcon: ActionIcon, actionColor, isContactedView, onSecondaryAction }) {
   const [isOpen, setIsOpen] = useState(false);
   const { t1, t2, overallPriority, parentPhone, caseStatus } = student;
 
   const isHigh = overallPriority === 'High';
   const isResolved = caseStatus === 'Resolved';
   
-  // Dynamic Styling based on Resolved status
   const borderClass = isResolved 
     ? 'border-l-emerald-500 bg-emerald-50/30' 
     : (isHigh ? 'border-l-red-500' : 'border-l-amber-500');
@@ -349,7 +358,6 @@ function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIc
     { name: 'T2', Grade: t2.avgGrade, Attendance: t2.attendance?.value || 100 },
   ];
 
-  // Helper for button colors
   const btnStyles = {
     blue: "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:border-blue-300",
     emerald: "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300",
@@ -386,17 +394,27 @@ function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIc
            
            {userRole === 'counselor' && (
              <div className="flex items-center gap-2">
-               {/* Unified Action Button */}
+               {/* Primary Action (Contact / Resolve / Reopen) */}
                <button 
                  onClick={(e) => { e.stopPropagation(); onAction(); }}
                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${btnStyles[actionColor]}`}
                >
                  <ActionIcon size={14} /> {actionLabel}
                </button>
+
+               {/* Secondary Action (Uncontact) - Only if handler provided */}
+               {onSecondaryAction && (
+                 <button 
+                   onClick={(e) => { e.stopPropagation(); onSecondaryAction(); }}
+                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                   title="Move back to pending"
+                 >
+                   <Undo2 size={14} /> Uncontact
+                 </button>
+               )}
              </div>
            )}
 
-           {/* Micro Chart */}
            <div className="h-10 w-24 hidden sm:block">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart data={chartData}>

@@ -12,7 +12,7 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
-  const [rawAnnouncements, setRawAnnouncements] = useState([]); // Store all raw data
+  const [rawAnnouncements, setRawAnnouncements] = useState([]); 
   const [loading, setLoading] = useState(true);
   
   // UI States
@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [selectedTerm, setSelectedTerm] = useState('t1'); 
 
   // --- SUBJECTS CONFIGURATION ---
+  // Ensure these match your Database keys (e.g. t1_subj_sejarah)
   const ALL_SUBJECTS = ['bm', 'english', 'math', 'science', 'sejarah', 'geografi'];
 
   useEffect(() => {
@@ -28,14 +29,14 @@ export default function Dashboard() {
     // 1. Fetch Students
     const unsubStudents = onValue(ref(db, "students"), (snapshot) => {
       const data = snapshot.val();
+      // We map the data to an array, ensuring 'caseStatus' and all fields are included
       setStudents(data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : []);
     });
 
-    // 2. Fetch ALL Announcements (Filter later in render)
+    // 2. Fetch Announcements
     const unsubAnnouncements = onValue(ref(db, "announcements"), (snapshot) => {
       const data = snapshot.val();
       const list = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-      // Sort by newest first
       setRawAnnouncements(list.sort((a, b) => b.id.localeCompare(a.id))); 
       setLoading(false);
     });
@@ -43,47 +44,35 @@ export default function Dashboard() {
     return () => { unsubStudents(); unsubAnnouncements(); };
   }, [user]);
 
-  // --- DYNAMIC FILTERING LOGIC ---
-  // We filter here so we always have access to the latest 'students' state
+  // --- DYNAMIC ANNOUNCEMENT FILTERING ---
   const announcements = rawAnnouncements.filter(ann => {
     const target = ann.target || 'All';
     const targetLower = target.toLowerCase();
 
-    // 1. Admin sees everything
     if (user.role === 'admin') return true;
-
-    // 2. Everyone sees 'All' / 'School Wide'
     if (target === 'All') return true;
 
-    // 3. Parent Logic (UPDATED)
     if (user.role === 'parent') {
-        // General parent announcements
         if (targetLower === 'parents') return true;
-        
-        // **Specific Class Announcements for their Children**
-        // Get list of this parent's children
         const myKids = students.filter(s => s.parentId === user.uid);
-        // Check if announcement target matches any of their classes
         if (myKids.some(kid => kid.class === target)) return true;
     }
 
-    // 4. Teacher Logic
     if (user.role === 'teacher') {
         if (targetLower === 'teachers') return true;
         if (user.class && target === user.class) return true;
     }
 
     return false;
-  }).slice(0, 5); // Take top 5 after filtering
+  }).slice(0, 5);
 
   // --- AUTO SLIDER LOGIC ---
   useEffect(() => {
     if (announcements.length <= 1) return; 
     const interval = setInterval(() => setActiveIndex((c) => (c + 1) % announcements.length), 5000); 
     return () => clearInterval(interval);
-  }, [announcements.length]); // Dependencies updated to use derived 'announcements'
+  }, [announcements.length]);
 
-  // --- REDIRECT IF NOT LOGGED IN ---
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -93,7 +82,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Loading dashboard...</div>;
 
-  // --- FILTER DATA FOR DASHBOARD WIDGETS ---
+  // --- FILTER DATA FOR WIDGETS ---
   let myStudents = [];
   let title = "Dashboard";
 
@@ -134,19 +123,25 @@ export default function Dashboard() {
     return { priority }; 
   };
 
-  const atRiskList = myStudents.map(s => ({...s, risk: analyzeStudentRisk(s)})).filter(s => s.risk);
+  // --- GENERATE RISK LIST (FILTERED) ---
+  const atRiskList = myStudents
+    .map(s => ({...s, risk: analyzeStudentRisk(s)}))
+    // FILTER: Only show student if they have a risk AND caseStatus is NOT Resolved
+    .filter(s => s.risk && (s.caseStatus || 'Unresolved') !== 'Resolved');
+
   atRiskList.sort((a, b) => (a.risk.priority === 'High' ? -1 : 1));
 
   // --- CHART DATA GENERATION ---
   const subjectAvgData = [];
   if (user.role === 'teacher') {
+    // Labels corresponding to Database Keys
     const subjectLabels = { 
         bm: 'BM', 
         english: 'BI', 
         math: 'Matematik', 
         science: 'Sains',
-        sejarah: 'Sejarah', 
-        geografi: 'Geografi'     
+        sejarah: 'P.Islam/Moral', 
+        geografi: 'P.Jasmani'     
     };
     const stats = {};
     
@@ -247,7 +242,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <StatCard title="Total Students" value={myStudents.length} icon={<Users size={24} className="text-blue-600" />} bg="bg-white" border="border-l-4 border-blue-500" />
         <StatCard title="Avg Attendance" value={`${avgAttendance}%`} icon={<TrendingUp size={24} className="text-emerald-600" />} bg="bg-white" border="border-l-4 border-emerald-500" />
-        <StatCard title="Students At Risk" value={atRiskList.length} icon={<AlertTriangle size={24} className="text-red-600" />} bg="bg-white" border="border-l-4 border-red-500" />
+        <StatCard title="Active Risks" value={atRiskList.length} icon={<AlertTriangle size={24} className="text-red-600" />} bg="bg-white" border="border-l-4 border-red-500" />
       </div>
 
       {/* MAIN CONTENT GRID */}
@@ -257,7 +252,7 @@ export default function Dashboard() {
         {user.role !== 'parent' && (
           <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
             
-            {/* Risk List (Admin/Counselor) */}
+            {/* Risk List (Admin/Counselor) - Filtered by Resolved */}
             {(user.role === 'admin' || user.role === 'counselor') && (
               <>
                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -292,7 +287,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="h-72 flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <CheckCircle size={32} className="text-emerald-400 mb-2"/>
-                    <p className="font-medium text-slate-600">No At-Risk Students Found</p>
+                    <p className="font-medium text-slate-600">No Active Risks Found</p>
                   </div>
                 )}
               </>
@@ -305,7 +300,6 @@ export default function Dashboard() {
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <BookOpen size={20} className="text-indigo-500" /> Class Performance
                   </h3>
-                  {/* Term Selector */}
                   <div className="flex bg-slate-100 p-1 rounded-lg self-end sm:self-auto">
                     {['t1', 't2'].map((term) => (
                       <button 
