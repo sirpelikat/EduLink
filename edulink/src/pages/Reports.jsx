@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { db, ref, onValue, update } from "../firebaseRTDB";
 import { useAuth } from "../context/AuthContext";
 
+// --- CONSTANTS ---
+const TOTAL_SCHOOL_DAYS = 120; // Maximum school days per term
+const TOTAL_COCU_DAYS = 12;    // Maximum Co-Curriculum meetings per term
+
 // --- ICONS ---
 const SearchIcon = () => <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
 const FilterIcon = () => <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
@@ -11,6 +15,8 @@ const ArrowLeftIcon = () => <svg className="w-5 h-5" fill="none" stroke="current
 const UsersIcon = () => <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
 const StarIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>;
 const TargetIcon = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+const CalendarIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+
 
 // --- PROGRESS BAR COMPONENT ---
 const ProgressBar = ({ value, colorClass }) => (
@@ -143,10 +149,22 @@ export default function Reports() {
   }
 
   const handleEditChange = (id, field, value) => {
-    if (!field.includes('behavior') && !field.includes('signed') && !field.includes('strength') && !field.includes('weakness')) {
-        const num = Number(value);
+    // UPDATED VALIDATION LOGIC
+    const num = Number(value);
+    
+    // 1. Attendance Days Validation
+    if (field.includes('attendance_days')) {
+        if (num < 0 || num > TOTAL_SCHOOL_DAYS) return;
+    }
+    // 2. Co-Curriculum Days Validation
+    else if (field.includes('cocu_days')) {
+        if (num < 0 || num > TOTAL_COCU_DAYS) return;
+    }
+    // 3. Marks Validation (0-100)
+    else if (!field.includes('behavior') && !field.includes('signed') && !field.includes('strength') && !field.includes('weakness')) {
         if (num < 0 || num > 100) return; 
     }
+
     const dbKey = field.startsWith('t1_') || field.startsWith('t2_') ? field : getField(field);
     setEdits(prev => ({
       ...prev,
@@ -331,8 +349,14 @@ export default function Reports() {
             <tbody>
             {viewList.length > 0 ? (
                 viewList.map(s => {
-                const attendance = getValue(s.id, 'attendance');
-                const cocu = getValue(s.id, 'cocu_attendance');
+                // ATTENDANCE CALCULATION FOR DISPLAY (Now using days)
+                const attendanceDays = getValue(s.id, 'attendance_days') || 0;
+                const attendancePct = Math.round((Number(attendanceDays) / TOTAL_SCHOOL_DAYS) * 100) || 0;
+
+                // CO-CURRICULUM CALCULATION FOR DISPLAY (Now using days)
+                const cocuDays = getValue(s.id, 'cocu_days') || 0;
+                const cocuPct = Math.round((Number(cocuDays) / TOTAL_COCU_DAYS) * 100) || 0;
+
                 const strength = getValue(s.id, 'strength'); 
                 const weakness = getValue(s.id, 'weakness');  
                 const signedBy = s[getField('signedBy')];
@@ -354,14 +378,23 @@ export default function Reports() {
                         </div>
                     </td>
                     
-                    {(user.role === 'teacher' || user.role === 'admin') ? (
-                        <>
-                        <td className="px-4 py-5 text-center">
-                            <input type="number" placeholder="0" className="w-16 bg-slate-50 border-none rounded-lg p-2 text-center font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500" value={attendance} onChange={e => handleEditChange(s.id, 'attendance', e.target.value)} />
-                        </td>
-                        <td className="px-4 py-5 text-center">
-                            <input type="number" placeholder="0" className="w-16 bg-slate-50 border-none rounded-lg p-2 text-center font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500" value={cocu} onChange={e => handleEditChange(s.id, 'cocu_attendance', e.target.value)} />
-                        </td>
+                    {/* ATTENDANCE COLUMN (READ ONLY IN LIST VIEW) */}
+                    <td className="px-4 py-5 text-center">
+                        <div className="flex flex-col items-center">
+                            <span className="text-xs font-bold text-slate-400 mb-0.5">{attendanceDays}/{TOTAL_SCHOOL_DAYS} Days</span>
+                            <div className="font-bold text-slate-700 text-sm">{attendancePct}%</div>
+                            <ProgressBar value={attendancePct} colorClass={attendancePct < 80 ? "bg-red-500" : "bg-emerald-500"} />
+                        </div>
+                    </td>
+
+                    {/* COCU COLUMN (READ ONLY IN LIST VIEW - NOW BASED ON DAYS) */}
+                    <td className="px-4 py-5 text-center">
+                        <div className="flex flex-col items-center">
+                             <span className="text-xs font-bold text-slate-400 mb-0.5">{cocuDays}/{TOTAL_COCU_DAYS} Days</span>
+                             <div className="font-bold text-slate-700 text-sm">{cocuPct}%</div>
+                             <ProgressBar value={cocuPct} colorClass="bg-blue-500" />
+                        </div>
+                    </td>
                         
                         <td className="px-4 py-5 text-center">
                              {classRank !== "N/A" ? (
@@ -376,58 +409,32 @@ export default function Reports() {
                             ) : <span className="text-slate-300 text-2xl">-</span>}
                         </td>
                         
-                        <td className="px-4 py-5">
-                            <div className="flex flex-col gap-3">
-                                <div className="relative">
-                                    <span className="absolute left-3 top-3 text-emerald-500"><StarIcon/></span>
-                                    <textarea 
-                                        placeholder="Highlights & Strengths..." 
-                                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
-                                        rows="2" 
-                                        value={strength} 
-                                        onChange={e => handleEditChange(s.id, 'strength', e.target.value)} 
-                                    />
-                                </div>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-3 text-amber-500"><TargetIcon/></span>
-                                    <textarea 
-                                        placeholder="Areas for Improvement..." 
-                                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
-                                        rows="2" 
-                                        value={weakness} 
-                                        onChange={e => handleEditChange(s.id, 'weakness', e.target.value)} 
-                                    />
-                                </div>
-                            </div>
-                        </td>
-                        </>
-                    ) : (
-                        <>
-                        <td className="px-4 py-5 text-center">
-                            <div className="font-bold text-slate-700">{attendance || 0}%</div>
-                            <ProgressBar value={attendance} colorClass="bg-emerald-500" />
-                        </td>
-                        <td className="px-4 py-5 text-center">
-                            <div className="font-bold text-slate-700">{cocu || 0}%</div>
-                            <ProgressBar value={cocu} colorClass="bg-blue-500" />
-                        </td>
-                        
-                        <td className="px-4 py-5 text-center">
-                            {classRank !== "N/A" ? (
-                                <div className="flex flex-col gap-1.5 items-center">
-                                    <div className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold w-full justify-center ${classRank <= 3 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}`}>
-                                        {classRank <= 3 && <TrophyIcon />} Class: #{classRank}
-                                    </div>
-                                    <div className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded w-full border border-indigo-100">
-                                        Batch: #{yearRank}
-                                    </div>
-                                </div>
-                            ) : <span>-</span>}
-                        </td>
-
                         <td className="px-6 py-5 align-top">
-                            <div className="flex flex-col gap-3">
-                                {/* Strength Card */}
+                           {(user.role === 'teacher' || user.role === 'admin') ? (
+                             <div className="flex flex-col gap-3">
+                                 <div className="relative">
+                                     <span className="absolute left-3 top-3 text-emerald-500"><StarIcon/></span>
+                                     <textarea 
+                                         placeholder="Highlights & Strengths..." 
+                                         className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
+                                         rows="2" 
+                                         value={strength} 
+                                         onChange={e => handleEditChange(s.id, 'strength', e.target.value)} 
+                                     />
+                                 </div>
+                                 <div className="relative">
+                                     <span className="absolute left-3 top-3 text-amber-500"><TargetIcon/></span>
+                                     <textarea 
+                                         placeholder="Areas for Improvement..." 
+                                         className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
+                                         rows="2" 
+                                         value={weakness} 
+                                         onChange={e => handleEditChange(s.id, 'weakness', e.target.value)} 
+                                     />
+                                 </div>
+                             </div>
+                           ) : (
+                                <div className="flex flex-col gap-3">
                                 <div className="relative group p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 shadow-sm hover:shadow-md transition-all">
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="p-1 rounded-full bg-emerald-100 text-emerald-600 shadow-sm"><StarIcon/></div>
@@ -438,7 +445,6 @@ export default function Reports() {
                                     </p>
                                 </div>
 
-                                {/* Weakness Card */}
                                 <div className="relative group p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100/50 shadow-sm hover:shadow-md transition-all">
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="p-1 rounded-full bg-amber-100 text-amber-600 shadow-sm"><TargetIcon/></div>
@@ -449,9 +455,8 @@ export default function Reports() {
                                     </p>
                                 </div>
                             </div>
+                           )}
                         </td>
-                        </>
-                    )}
 
                     <td className="px-6 py-5 text-center">
                         {signedBy ? (
@@ -520,6 +525,72 @@ export default function Reports() {
 
             {/* Modal Body (Scrollable) */}
             <div className="p-8 space-y-8 bg-slate-50 overflow-y-auto">
+                
+                {/* --- NEW SECTION: Attendance & Co-Cu Input --- */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                             <CalendarIcon /> Attendance & Activity
+                        </h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        
+                        {/* Attendance Input Card */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                             <label className="text-xs font-bold text-slate-500 uppercase block mb-2">School Attendance (Max {TOTAL_SCHOOL_DAYS})</label>
+                             <div className="flex items-center gap-3">
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    max={TOTAL_SCHOOL_DAYS}
+                                    disabled={user.role !== 'teacher' && user.role !== 'admin'}
+                                    value={getValue(selectedStudent.id, 'attendance_days')}
+                                    onChange={(e) => handleEditChange(selectedStudent.id, 'attendance_days', e.target.value)}
+                                    className="flex-1 font-black text-2xl text-slate-800 bg-white p-2 rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-center"
+                                    placeholder="0"
+                                />
+                                <div className="text-sm font-bold text-slate-400">/ {TOTAL_SCHOOL_DAYS}</div>
+                             </div>
+                             {/* Auto-calculated Percentage Display */}
+                             <div className="mt-3 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-100">
+                                <span className="text-xs font-semibold text-slate-400">Attendance %</span>
+                                <span className={`text-sm font-black ${
+                                    (Number(getValue(selectedStudent.id, 'attendance_days') || 0) / TOTAL_SCHOOL_DAYS) * 100 < 80 
+                                    ? 'text-red-500' : 'text-emerald-500'
+                                }`}>
+                                    {Math.round((Number(getValue(selectedStudent.id, 'attendance_days') || 0) / TOTAL_SCHOOL_DAYS) * 100)}%
+                                </span>
+                             </div>
+                        </div>
+
+                        {/* Co-Curriculum Input Card (UPDATED) */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                             <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Co-Curriculum (Max {TOTAL_COCU_DAYS})</label>
+                             <div className="flex items-center gap-3">
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    max={TOTAL_COCU_DAYS}
+                                    disabled={user.role !== 'teacher' && user.role !== 'admin'}
+                                    value={getValue(selectedStudent.id, 'cocu_days')}
+                                    onChange={(e) => handleEditChange(selectedStudent.id, 'cocu_days', e.target.value)}
+                                    className="flex-1 font-black text-2xl text-slate-800 bg-white p-2 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-center"
+                                    placeholder="0"
+                                />
+                                <div className="text-sm font-bold text-slate-400">/ {TOTAL_COCU_DAYS}</div>
+                             </div>
+                              {/* Auto-calculated Percentage Display */}
+                             <div className="mt-3 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-100">
+                                <span className="text-xs font-semibold text-slate-400">Participation %</span>
+                                <span className="text-sm font-black text-blue-500">
+                                    {Math.round((Number(getValue(selectedStudent.id, 'cocu_days') || 0) / TOTAL_COCU_DAYS) * 100)}%
+                                </span>
+                             </div>
+                        </div>
+
+                    </div>
+                </div>
+
                 {/* Score Cards Grid */}
                 <div>
                     <div className="flex items-center justify-between mb-4">
