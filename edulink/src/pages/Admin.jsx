@@ -37,7 +37,7 @@ export default function Admin() {
   const [editClass, setEditClass] = useState('');
 
   // Forms
-  const [newUser, setNewUser] = useState({ name: '', role: 'parent', className: '' });
+  const [newUser, setNewUser] = useState({ name: '', role: 'parent', className: '', phone: '' });
   const [newStudent, setNewStudent] = useState({ name: '', className: '', parentId: '' });
 
   // 1. Fetch Data
@@ -71,6 +71,7 @@ export default function Admin() {
     setEditClass('');
   };
 
+  // FIX: Using 'update' ensures we merge data and DO NOT overwrite phone numbers
   const saveUserClass = async (uid) => {
     if (!editClass) return alert("Please select a class");
     await update(ref(db, `users/${uid}`), { class: editClass });
@@ -89,10 +90,10 @@ export default function Admin() {
     setLoading(true); setStatus('Creating...'); setGeneratedCreds(null);
     const email = generateEmail(newUser.name);
     const password = generatePassword(8);
-    const res = await createAccount(newUser.name, email, password, newUser.role, newUser.className);
+    const res = await createAccount(newUser.name, email, password, newUser.role, newUser.className, newUser.phone);
     if (res) {
       setGeneratedCreds({ email, password });
-      setNewUser({ name: '', role: 'parent', className: '' });
+      setNewUser({ name: '', role: 'parent', className: '', phone: '' });
       setStatus('success');
     }
     setLoading(false);
@@ -113,7 +114,7 @@ export default function Admin() {
     setLoading(false);
   }
 
-  async function createAccount(name, email, password, role, className = '') {
+  async function createAccount(name, email, password, role, className = '', phone = '') {
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
     try {
@@ -125,8 +126,10 @@ export default function Admin() {
           cred = await createUserWithEmailAndPassword(secondaryAuth, uniqueEmail, password);
         } else throw err;
       }
-      const profile = { name, email: cred.user.email, role, createdAt: new Date().toISOString() };
+      
+      const profile = { name, email: cred.user.email, role, phone, createdAt: new Date().toISOString() };
       if (role === 'teacher' && className) profile.class = className;
+      
       await set(ref(db, `users/${cred.user.uid}`), profile);
       await signOut(secondaryAuth);
       return { uid: cred.user.uid, email: cred.user.email, password };
@@ -138,26 +141,38 @@ export default function Admin() {
     if (!csvFile) return;
     setLoading(true); setStatus("Reading CSV...");
     const sessionParents = {}; const newAccounts = []; const reader = new FileReader();
+    
     reader.onload = async (e) => {
       const rows = e.target.result.split('\n').map(r => r.trim()).filter(r => r);
       for (let i = 1; i < rows.length; i++) {
         const cols = rows[i].split(',').map(s => s.trim());
+        
         if (importMode === 'family') {
-          const [pName, sName, sClass] = cols;
+          const [pName, pPhone, sName, sClass] = cols;
           if (!pName) continue;
           const pKey = pName.toLowerCase();
+          
           let parentUid = sessionParents[pKey] || users.find(u => u.name.toLowerCase() === pKey && u.role === 'parent')?.uid;
+          
           if (!parentUid) {
-            const res = await createAccount(pName, generateEmail(pName), generatePassword(8), 'parent');
-            if (res) { parentUid = res.uid; sessionParents[pKey] = parentUid; newAccounts.push({ ...res, name: pName, role: 'parent' }); await delay(300); }
+            const res = await createAccount(pName, generateEmail(pName), generatePassword(8), 'parent', '', pPhone);
+            if (res) { 
+              parentUid = res.uid; 
+              sessionParents[pKey] = parentUid; 
+              newAccounts.push({ ...res, name: pName, role: 'parent', phone: pPhone }); 
+              await delay(300); 
+            }
           }
           if (parentUid) await push(ref(db, 'students'), { name: sName, class: sClass || 'Unassigned', parentId: parentUid, grade: 0, attendance: 100 });
         } 
         else if (importMode === 'teacher') {
-          const [tName, tClass] = cols;
+          const [tName, tPhone, tClass] = cols;
           if (tName) {
-            const res = await createAccount(tName, generateEmail(tName), generatePassword(8), 'teacher', tClass);
-            if (res) { newAccounts.push({ ...res, name: tName, role: 'teacher', class: tClass||'' }); await delay(300); }
+            const res = await createAccount(tName, generateEmail(tName), generatePassword(8), 'teacher', tClass, tPhone);
+            if (res) { 
+              newAccounts.push({ ...res, name: tName, role: 'teacher', class: tClass||'', phone: tPhone }); 
+              await delay(300); 
+            }
           }
         }
       }
@@ -168,7 +183,7 @@ export default function Admin() {
   }
 
   function downloadCredentials(accounts) {
-    let csv = "Name,Email,Password,Role,Class\n" + accounts.map(a => `${a.name},${a.email},${a.password},${a.role},${a.class||''}`).join('\n');
+    let csv = "Name,Phone,Email,Password,Role,Class\n" + accounts.map(a => `${a.name},${a.phone || ''},${a.email},${a.password},${a.role},${a.class||''}`).join('\n');
     const link = document.createElement("a");
     link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
     link.download = "edulink_credentials.csv";
@@ -178,12 +193,12 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
-  // --- FILTER LOGIC ---
   const filteredUsers = users.filter(u => {
     const matchesRole = userFilter === 'all' || u.role === userFilter;
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
                           (u.email || '').toLowerCase().includes(searchLower) ||
+                          (u.phone || '').toLowerCase().includes(searchLower) || 
                           (u.class || '').toLowerCase().includes(searchLower);
     return matchesRole && matchesSearch;
   });
@@ -194,7 +209,6 @@ export default function Admin() {
            (s.class || '').toLowerCase().includes(searchLower);
   });
 
-  // --- STYLES ---
   const inputStyle = "w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 text-sm font-medium";
   const labelStyle = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1";
 
@@ -214,10 +228,9 @@ export default function Admin() {
   );
 
   return (
-    // Updated padding for mobile friendliness
     <div className="p-4 md:p-6 w-full mx-auto space-y-6 md:space-y-8 animate-fade-in">
       
-      {/* HEADER: Flexible layout for mobile */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-slate-800 p-3 rounded-xl shadow-lg shadow-slate-200"><Shield className="text-white" size={28} /></div>
@@ -227,7 +240,7 @@ export default function Admin() {
           </div>
         </div>
         
-        {/* Toggle Buttons: Full width on mobile */}
+        {/* Toggle Buttons */}
         <div className="w-full md:w-auto bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
           <button onClick={() => { setActiveTab('users'); setSearchQuery(''); }} className={`flex-1 md:flex-none justify-center flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab==='users' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Users size={16} /> <span className="hidden sm:inline">Manage</span> Logins
@@ -253,6 +266,14 @@ export default function Admin() {
                   <div className="relative">
                     <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
                     <input type="text" placeholder="e.g. John Tan" required className={inputStyle} value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                  </div>
+                </div>
+                {/* PHONE INPUT */}
+                <div>
+                  <label className={labelStyle}>Phone Number</label>
+                  <div className="relative">
+                    <Phone size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                    <input type="tel" placeholder="e.g. 012-3456789" className={inputStyle} value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} />
                   </div>
                 </div>
                 <div>
@@ -329,6 +350,14 @@ export default function Admin() {
               <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='family'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}><input type="radio" name="mode" className="hidden" checked={importMode==='family'} onChange={()=>setImportMode('family')} /> Families</label>
               <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition ${importMode==='teacher'?'bg-orange-500 text-white':'text-slate-400 hover:text-white'}`}><input type="radio" name="mode" className="hidden" checked={importMode==='teacher'} onChange={()=>setImportMode('teacher')} /> Teachers</label>
             </div>
+            
+            <p className="text-[10px] text-slate-400 mb-3 italic">
+              {importMode === 'family' 
+                ? "Format: Parent Name, Phone, Student Name, Class" 
+                : "Format: Teacher Name, Phone, Class"
+              }
+            </p>
+
             <input type="file" accept=".csv" onChange={e => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 mb-4 cursor-pointer"/>
             <button onClick={handleBulkImport} disabled={loading || !csvFile} className="w-full bg-white text-slate-900 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-100 disabled:opacity-50">Start CSV Import</button>
             {status === 'success' && <p className="text-xs text-emerald-400 mt-2 text-center">Operation Successful!</p>}
@@ -337,15 +366,13 @@ export default function Admin() {
 
         {/* RIGHT COLUMN: LIST */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[500px] md:h-[600px]">
-          
-          {/* LIST HEADER */}
+          {/* Header */}
           <div className="p-4 md:p-6 border-b border-slate-50 space-y-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <h2 className="text-lg font-bold text-slate-800">
                 {activeTab === 'users' ? `System Users (${filteredUsers.length})` : `Enrolled Students (${filteredStudents.length})`}
               </h2>
-              
-              {/* Role Filters - Scrollable on mobile */}
+              {/* Role Filters */}
               {activeTab === 'users' && (
                 <div className="w-full md:w-auto overflow-x-auto no-scrollbar">
                   <div className="flex bg-slate-100 rounded-lg p-1 min-w-max">
@@ -358,44 +385,35 @@ export default function Admin() {
                 </div>
               )}
             </div>
-
-            {/* SEARCH BAR */}
+            {/* Search */}
             <div className="relative">
               <Search size={16} className="absolute left-3 top-3 text-slate-400" />
               <input 
                 type="text" 
-                placeholder={activeTab === 'users' ? "Search by name, email, or class..." : "Search by student name or class..."}
+                placeholder={activeTab === 'users' ? "Search by name, email, phone or class..." : "Search by student name or class..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
-                  <X size={16} />
-                </button>
-              )}
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"><X size={16} /></button>}
             </div>
           </div>
           
+          {/* List Content */}
           <ul className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
             {activeTab === 'users' 
               ? filteredUsers.map(u => (
                   <li key={u.uid} className="group flex justify-between items-center p-3 md:p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
                     <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
-                      <div className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs md:text-sm ${
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-600' :
-                        u.role === 'teacher' ? 'bg-blue-100 text-blue-600' :
-                        u.role === 'counselor' ? 'bg-pink-100 text-pink-600' :
-                        'bg-amber-100 text-amber-600'
-                      }`}>
+                      <div className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs md:text-sm ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : u.role === 'teacher' ? 'bg-blue-100 text-blue-600' : u.role === 'counselor' ? 'bg-pink-100 text-pink-600' : 'bg-amber-100 text-amber-600'}`}>
                         {u.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <p className="font-bold text-slate-800 text-sm md:text-base truncate">{u.name}</p>
                         <div className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-1">
-                          <span className="truncate">{u.email}</span> • <span className="uppercase">{u.role}</span>
-                          
-                          {/* TEACHER CLASS EDITING */}
+                          <span className="truncate">{u.email}</span>
+                          {/* PHONE REMOVED FROM DISPLAY HERE */}
+                          <span> • <span className="uppercase">{u.role}</span></span>
                           {u.role === 'teacher' && (
                             editingId === u.uid ? (
                               <div className="flex items-center gap-1 ml-1 animate-fade-in">
@@ -413,23 +431,16 @@ export default function Admin() {
                         </div>
                       </div>
                     </div>
-                    {/* Delete button always visible on mobile, hidden on desktop until hover */}
-                    <button onClick={()=>deleteUser(u.uid)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
-                      <Trash2 size={18} />
-                    </button>
+                    <button onClick={()=>deleteUser(u.uid)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
                   </li>
                 ))
               : filteredStudents.map(s => (
                   <li key={s.id} className="group flex justify-between items-center p-3 md:p-4 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition">
                     <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
-                      <div className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs md:text-sm">
-                        {s.name.charAt(0).toUpperCase()}
-                      </div>
+                      <div className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs md:text-sm">{s.name.charAt(0).toUpperCase()}</div>
                       <div className="min-w-0">
                         <p className="font-bold text-slate-800 text-sm md:text-base truncate">{s.name}</p>
                         <div className="text-xs text-slate-500 flex flex-wrap items-center gap-1">
-                          
-                          {/* STUDENT CLASS EDITING */}
                           {editingId === s.id ? (
                             <div className="flex items-center gap-1 animate-fade-in">
                               <ClassSelect value={editClass} onChange={(e) => setEditClass(e.target.value)} />
@@ -437,20 +448,13 @@ export default function Admin() {
                               <button onClick={cancelEditing} className="text-red-500 hover:text-red-700"><X size={14}/></button>
                             </div>
                           ) : (
-                            <span className="flex items-center gap-1">
-                              {s.class}
-                              <button onClick={() => startEditing(s.id, s.class)} className="text-slate-400 hover:text-blue-500"><Pencil size={10}/></button>
-                            </span>
+                            <span className="flex items-center gap-1">{s.class}<button onClick={() => startEditing(s.id, s.class)} className="text-slate-400 hover:text-blue-500"><Pencil size={10}/></button></span>
                           )}
-                          
                           <span className="truncate"> • Parent: {users.find(u=>u.uid===s.parentId)?.name || <span className="text-red-500">Unlinked</span>}</span>
                         </div>
                       </div>
                     </div>
-                    {/* Delete button always visible on mobile */}
-                    <button onClick={()=>deleteStudent(s.id)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
-                      <Trash2 size={18} />
-                    </button>
+                    <button onClick={()=>deleteStudent(s.id)} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
                   </li>
                 ))
             }

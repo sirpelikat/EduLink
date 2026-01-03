@@ -207,7 +207,7 @@ export default function Profile() {
             <div className="pt-2"></div>
             {profileStatus && (
               <div className={`text-center text-sm font-semibold p-3 rounded-xl animate-fade-in ${profileStatus === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                {profileStatus === 'success' ? '✅ Profile updated!' : profileStatus}
+                {profileStatus === 'success' ? 'Profile updated!' : profileStatus}
               </div>
             )}
             <button disabled={loading} className="w-full bg-slate-800 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-xl hover:bg-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-auto">
@@ -239,7 +239,7 @@ export default function Profile() {
             <div className="pt-2"></div>
             {passStatus && (
               <div className={`text-center text-sm font-semibold p-3 rounded-xl animate-fade-in ${passStatus === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                {passStatus === 'success' ? '✅ Password updated!' : passStatus}
+                {passStatus === 'success' ? 'Password updated!' : passStatus}
               </div>
             )}
             <button disabled={loading} className="w-full bg-rose-500 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-xl hover:bg-rose-600 hover:shadow-rose-200 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
