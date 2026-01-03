@@ -36,7 +36,7 @@ export default function Admin() {
   const [editingId, setEditingId] = useState(null);
   const [editClass, setEditClass] = useState('');
 
-  // Forms - Added 'phone' to state
+  // Forms
   const [newUser, setNewUser] = useState({ name: '', role: 'parent', className: '', phone: '' });
   const [newStudent, setNewStudent] = useState({ name: '', className: '', parentId: '' });
 
@@ -71,6 +71,7 @@ export default function Admin() {
     setEditClass('');
   };
 
+  // FIX: Using 'update' ensures we merge data and DO NOT overwrite phone numbers
   const saveUserClass = async (uid) => {
     if (!editClass) return alert("Please select a class");
     await update(ref(db, `users/${uid}`), { class: editClass });
@@ -89,7 +90,6 @@ export default function Admin() {
     setLoading(true); setStatus('Creating...'); setGeneratedCreds(null);
     const email = generateEmail(newUser.name);
     const password = generatePassword(8);
-    // Updated call to include phone
     const res = await createAccount(newUser.name, email, password, newUser.role, newUser.className, newUser.phone);
     if (res) {
       setGeneratedCreds({ email, password });
@@ -114,7 +114,6 @@ export default function Admin() {
     setLoading(false);
   }
 
-  // UPDATED: Now accepts 'phone' argument
   async function createAccount(name, email, password, role, className = '', phone = '') {
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
@@ -128,7 +127,6 @@ export default function Admin() {
         } else throw err;
       }
       
-      // Save Phone to Profile
       const profile = { name, email: cred.user.email, role, phone, createdAt: new Date().toISOString() };
       if (role === 'teacher' && className) profile.class = className;
       
@@ -139,7 +137,6 @@ export default function Admin() {
     finally { await deleteApp(secondaryApp); }
   }
 
-  // UPDATED: Parsing logic to include phone numbers
   async function handleBulkImport() {
     if (!csvFile) return;
     setLoading(true); setStatus("Reading CSV...");
@@ -147,18 +144,14 @@ export default function Admin() {
     
     reader.onload = async (e) => {
       const rows = e.target.result.split('\n').map(r => r.trim()).filter(r => r);
-      // Row 0 is header, start at 1
       for (let i = 1; i < rows.length; i++) {
         const cols = rows[i].split(',').map(s => s.trim());
         
         if (importMode === 'family') {
-          // EXPECTED: Parent Name, Phone, Student Name, Student Class
           const [pName, pPhone, sName, sClass] = cols;
-          
           if (!pName) continue;
           const pKey = pName.toLowerCase();
           
-          // Check if we already created this parent in this session or if they exist in DB
           let parentUid = sessionParents[pKey] || users.find(u => u.name.toLowerCase() === pKey && u.role === 'parent')?.uid;
           
           if (!parentUid) {
@@ -173,9 +166,7 @@ export default function Admin() {
           if (parentUid) await push(ref(db, 'students'), { name: sName, class: sClass || 'Unassigned', parentId: parentUid, grade: 0, attendance: 100 });
         } 
         else if (importMode === 'teacher') {
-          // EXPECTED: Teacher Name, Phone, Class
           const [tName, tPhone, tClass] = cols;
-          
           if (tName) {
             const res = await createAccount(tName, generateEmail(tName), generatePassword(8), 'teacher', tClass, tPhone);
             if (res) { 
@@ -202,13 +193,12 @@ export default function Admin() {
   const deleteUser = async (uid) => { if(confirm('Are you sure? This cannot be undone.')) await remove(ref(db, `users/${uid}`)); };
   const deleteStudent = async (id) => { if(confirm('Delete student record?')) await remove(ref(db, `students/${id}`)); };
 
-  // --- FILTER LOGIC ---
   const filteredUsers = users.filter(u => {
     const matchesRole = userFilter === 'all' || u.role === userFilter;
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) || 
                           (u.email || '').toLowerCase().includes(searchLower) ||
-                          (u.phone || '').toLowerCase().includes(searchLower) || // Search by phone too
+                          (u.phone || '').toLowerCase().includes(searchLower) || 
                           (u.class || '').toLowerCase().includes(searchLower);
     return matchesRole && matchesSearch;
   });
@@ -219,7 +209,6 @@ export default function Admin() {
            (s.class || '').toLowerCase().includes(searchLower);
   });
 
-  // --- STYLES ---
   const inputStyle = "w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 text-sm font-medium";
   const labelStyle = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1";
 
@@ -279,7 +268,7 @@ export default function Admin() {
                     <input type="text" placeholder="e.g. John Tan" required className={inputStyle} value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
                   </div>
                 </div>
-                {/* NEW PHONE INPUT */}
+                {/* PHONE INPUT */}
                 <div>
                   <label className={labelStyle}>Phone Number</label>
                   <div className="relative">
@@ -354,7 +343,7 @@ export default function Admin() {
             </div>
           )}
           
-          {/* Bulk Import UI - UPDATED TEXT */}
+          {/* Bulk Import UI */}
           <div className="bg-slate-800 p-6 rounded-2xl shadow-lg text-white">
             <div className="flex items-center gap-2 mb-4"><FileSpreadsheet className="text-orange-400" size={20} /><h3 className="font-bold">Bulk Import Tool</h3></div>
             <div className="flex gap-4 text-xs font-bold mb-4 bg-slate-700/50 p-1 rounded-lg">
@@ -423,7 +412,7 @@ export default function Admin() {
                         <p className="font-bold text-slate-800 text-sm md:text-base truncate">{u.name}</p>
                         <div className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-1">
                           <span className="truncate">{u.email}</span>
-                          {u.phone && <span> • {u.phone}</span>}
+                          {/* PHONE REMOVED FROM DISPLAY HERE */}
                           <span> • <span className="uppercase">{u.role}</span></span>
                           {u.role === 'teacher' && (
                             editingId === u.uid ? (
