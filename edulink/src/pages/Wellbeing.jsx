@@ -110,29 +110,26 @@ export default function Wellbeing() {
   }, [user, usersData]);
 
   // --- ACTIONS ---
-  const toggleContactStatus = async (student) => {
-    const newStatus = student.contactStatus === 'contacted' ? 'not_contacted' : 'contacted';
+  
+  // 1. Move from Pending -> Contacted (Reset case to Unresolved if needed)
+  const markAsContacted = async (student) => {
     try {
       await update(ref(db, `students/${student.id}`), {
-        contactStatus: newStatus,
-        lastContactedAt: newStatus === 'contacted' ? new Date().toISOString() : null,
-        // Reset case status to Unresolved if moved back to pending
-        caseStatus: newStatus === 'not_contacted' ? 'Unresolved' : student.caseStatus || 'Unresolved'
+        contactStatus: 'contacted',
+        lastContactedAt: new Date().toISOString(),
+        caseStatus: 'Unresolved' 
       });
-    } catch (error) {
-      alert("Error updating status.");
-    }
+    } catch (error) { alert("Error updating status."); }
   };
 
-  const toggleCaseResolution = async (student) => {
+  // 2. Toggle Case Resolution (Resolved <-> Unresolved)
+  const toggleResolution = async (student) => {
     const newResolution = student.caseStatus === 'Resolved' ? 'Unresolved' : 'Resolved';
     try {
       await update(ref(db, `students/${student.id}`), {
         caseStatus: newResolution
       });
-    } catch (error) {
-      alert("Error updating resolution.");
-    }
+    } catch (error) { alert("Error updating resolution."); }
   };
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading Well-Being data...</div>;
@@ -222,7 +219,13 @@ export default function Wellbeing() {
                      </div>
                      <div className="space-y-3">
                        {pendingList.filter(s => s.overallPriority === 'High').map(s => (
-                         <CompactStudentCard key={s.id} student={s} userRole={user.role} onToggleContact={() => toggleContactStatus(s)} />
+                         <CompactStudentCard 
+                            key={s.id} student={s} userRole={user.role} 
+                            onAction={() => markAsContacted(s)} 
+                            actionLabel="Contact"
+                            actionIcon={Phone}
+                            actionColor="blue"
+                         />
                        ))}
                      </div>
                    </div>
@@ -240,7 +243,13 @@ export default function Wellbeing() {
                      </div>
                      <div className="space-y-3">
                        {pendingList.filter(s => s.overallPriority === 'Low').map(s => (
-                         <CompactStudentCard key={s.id} student={s} userRole={user.role} onToggleContact={() => toggleContactStatus(s)} />
+                         <CompactStudentCard 
+                            key={s.id} student={s} userRole={user.role} 
+                            onAction={() => markAsContacted(s)} 
+                            actionLabel="Contact"
+                            actionIcon={Phone}
+                            actionColor="blue"
+                         />
                        ))}
                      </div>
                    </div>
@@ -269,8 +278,10 @@ export default function Wellbeing() {
                     {unresolvedList.map(s => (
                       <CompactStudentCard 
                         key={s.id} student={s} userRole={user.role} 
-                        onToggleContact={() => toggleContactStatus(s)}
-                        onToggleResolution={() => toggleCaseResolution(s)}
+                        onAction={() => toggleResolution(s)} 
+                        actionLabel="Resolve"
+                        actionIcon={CheckCircle}
+                        actionColor="emerald"
                         isContactedView={true}
                       />
                     ))}
@@ -293,8 +304,10 @@ export default function Wellbeing() {
                     {resolvedList.map(s => (
                       <CompactStudentCard 
                         key={s.id} student={s} userRole={user.role} 
-                        onToggleContact={() => toggleContactStatus(s)}
-                        onToggleResolution={() => toggleCaseResolution(s)}
+                        onAction={() => toggleResolution(s)}
+                        actionLabel="Reopen"
+                        actionIcon={Minus}
+                        actionColor="slate"
                         isContactedView={true}
                       />
                     ))}
@@ -319,7 +332,7 @@ function EmptyState({ msg, icon: Icon }) {
 }
 
 // --- CARD COMPONENT ---
-function CompactStudentCard({ student, userRole, onToggleContact, onToggleResolution, isContactedView }) {
+function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIcon: ActionIcon, actionColor, isContactedView }) {
   const [isOpen, setIsOpen] = useState(false);
   const { t1, t2, overallPriority, parentPhone, caseStatus } = student;
 
@@ -335,6 +348,13 @@ function CompactStudentCard({ student, userRole, onToggleContact, onToggleResolu
     { name: 'T1', Grade: t1.avgGrade, Attendance: t1.attendance?.value || 100 },
     { name: 'T2', Grade: t2.avgGrade, Attendance: t2.attendance?.value || 100 },
   ];
+
+  // Helper for button colors
+  const btnStyles = {
+    blue: "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:border-blue-300",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300",
+    slate: "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+  };
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-slate-200 border-l-[4px] ${borderClass} overflow-hidden hover:shadow-md transition-all`}>
@@ -366,31 +386,12 @@ function CompactStudentCard({ student, userRole, onToggleContact, onToggleResolu
            
            {userRole === 'counselor' && (
              <div className="flex items-center gap-2">
-               {/* 1. Toggle Resolution (Only visible in Contacted view) */}
-               {isContactedView && (
-                 <button 
-                   onClick={(e) => { e.stopPropagation(); onToggleResolution(); }}
-                   title={isResolved ? "Mark Unresolved" : "Mark Resolved"}
-                   className={`p-1.5 rounded-md border transition-all ${isResolved ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-slate-400 border-slate-200 hover:border-blue-400 hover:text-blue-500'}`}
-                 >
-                   {isResolved ? <CheckSquare size={16} /> : <Square size={16} />}
-                 </button>
-               )}
-
-               {/* 2. Toggle Contact Status */}
+               {/* Unified Action Button */}
                <button 
-                 onClick={(e) => { e.stopPropagation(); onToggleContact(); }}
-                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
-                   isContactedView
-                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200' 
-                     : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
-                 }`}
+                 onClick={(e) => { e.stopPropagation(); onAction(); }}
+                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${btnStyles[actionColor]}`}
                >
-                 {isContactedView ? (
-                   <>Done <CheckCircle size={14} /></>
-                 ) : (
-                   <>Contact <Phone size={14} /></>
-                 )}
+                 <ActionIcon size={14} /> {actionLabel}
                </button>
              </div>
            )}
