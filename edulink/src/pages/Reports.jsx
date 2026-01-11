@@ -2,6 +2,26 @@ import React, { useEffect, useState } from "react";
 import { db, ref, onValue, update } from "../firebaseRTDB";
 import { useAuth } from "../context/AuthContext";
 
+// --- ICONS ---
+const SearchIcon = () => <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+const FilterIcon = () => <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
+const CheckBadgeIcon = () => <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const TrophyIcon = () => <svg className="w-4 h-4 text-amber-500 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" transform="scale(0.8)" /><path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>;
+const ArrowLeftIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>;
+const UsersIcon = () => <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
+const StarIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>;
+const TargetIcon = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+
+// --- PROGRESS BAR COMPONENT ---
+const ProgressBar = ({ value, colorClass }) => (
+  <div className="w-full h-2 bg-slate-100 rounded-full mt-1 overflow-hidden">
+    <div 
+      className={`h-full rounded-full transition-all duration-500 ${colorClass}`} 
+      style={{ width: `${Math.min(Number(value) || 0, 100)}%` }}
+    />
+  </div>
+);
+
 <<<<<<< Updated upstream
 =======
 // --- CONSTANTS ---
@@ -110,26 +130,12 @@ export default function Reports() {
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-<<<<<<< Updated upstream
   const [currentTerm, setCurrentTerm] = useState(1); // 1 or 2
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState("All");
 
   // State for the "View Details" Modal
-=======
-
-  const [currentTerm, setCurrentTerm] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [importing, setImporting] = useState(false);
-
-  // For Admin: "" means show dashboard, "1"-"6" means show that year
-  const [selectedYear, setSelectedYear] = useState("");
-  const [selectedClass, setSelectedClass] = useState("");
-
->>>>>>> Stashed changes
   const [selectedStudent, setSelectedStudent] = useState(null);
-  
-  // State for inline editing (Teachers only)
   const [edits, setEdits] = useState({});
 
   useEffect(() => {
@@ -144,7 +150,6 @@ export default function Reports() {
   // --- HELPERS ---
   const getField = (baseField) => `t${currentTerm}_${baseField}`;
 
-  // Helper: Calculate Letter Grade based on scale
   const getLetterGrade = (val) => {
     const mark = Number(val);
     if (mark >= 80) return "A";
@@ -152,183 +157,95 @@ export default function Reports() {
     if (mark >= 60) return "C";
     if (mark >= 50) return "D";
     if (mark >= 40) return "E";
-<<<<<<< Updated upstream
     return "F"; // 0-39
-=======
-    return "F";
->>>>>>> Stashed changes
   };
 
-  // Helper: Calculate Rank based on TOTAL SCORE
-  // MODIFIED: Returns "N/A" if total score is 0
   const getStudentRank = (studentId, studentClass) => {
-<<<<<<< Updated upstream
     // 1. Get the current student's score
     const student = students.find(s => s.id === studentId);
     // Check edits first, then database, default to 0
-=======
-    const student = students.find((s) => s.id === studentId);
-    if (!student || !studentClass) return { classRank: "N/A", classTotal: 0, yearRank: "N/A", yearTotal: 0 };
-
->>>>>>> Stashed changes
     const scoreKey = getField("total_score");
-    const myScore = Number(student?.[scoreKey] || 0);
+    const myScore = Number(student[scoreKey] || 0);
 
-<<<<<<< Updated upstream
-    const classmates = students.filter(s => s.class === studentClass);
-    const total = classmates.length;
-
-    // 2. If score is 0, they are not ranked yet
-    if (myScore === 0) {
-        return { rank: "N/A", total };
-    }
-    
-    // 3. Sort classmates by Total Score (Highest to Lowest)
-    classmates.sort((a, b) => {
-        const scoreA = Number(a[scoreKey] || 0);
-        const scoreB = Number(b[scoreKey] || 0);
-        return scoreB - scoreA;
-    });
-
-    const rank = classmates.findIndex(s => s.id === studentId) + 1;
-
-    return { rank, total };
-=======
     if (myScore === 0) return { classRank: "N/A", classTotal: 0, yearRank: "N/A", yearTotal: 0 };
 
-    // 1. Calculate Class Rank
-    const classmates = students.filter((s) => s.class === studentClass);
+    const classmates = students.filter(s => s.class === studentClass);
     classmates.sort((a, b) => Number(b[scoreKey] || 0) - Number(a[scoreKey] || 0));
-    const classRank = classmates.findIndex((s) => s.id === studentId) + 1;
+    const classRank = classmates.findIndex(s => s.id === studentId) + 1;
 
     // 2. Calculate Year Rank (Assuming Year is the first char of class, e.g. "1 A" -> "1")
-    const yearPrefix = studentClass.toString().charAt(0);
-    const yearmates = students.filter((s) => s.class && s.class.toString().startsWith(yearPrefix));
+    const yearPrefix = studentClass.toString().charAt(0); 
+    const yearmates = students.filter(s => s.class && s.class.toString().startsWith(yearPrefix));
     yearmates.sort((a, b) => Number(b[scoreKey] || 0) - Number(a[scoreKey] || 0));
-    const yearRank = yearmates.findIndex((s) => s.id === studentId) + 1;
+    const yearRank = yearmates.findIndex(s => s.id === studentId) + 1;
 
-    return {
-      classRank,
-      classTotal: classmates.length,
-      yearRank,
-      yearTotal: yearmates.length,
-    };
-  };
-
-  const getYearCount = (year) => {
-    return students.filter((s) => s.class && s.class.startsWith(year.toString())).length;
-  };
-
-  const getValue = (studentId, baseField) => {
-    const key = getField(baseField);
-    const studentEdits = edits[studentId];
-    const studentOriginal = students.find((s) => s.id === studentId);
-    if (!studentOriginal) return "";
-    return studentEdits && studentEdits[key] !== undefined ? studentEdits[key] : studentOriginal[key] || "";
->>>>>>> Stashed changes
+    return { rank, total };
   };
 
   // --- ACTIONS ---
   async function handleSign(studentId) {
     if (!window.confirm(`Sign Term ${currentTerm} report electronically?`)) return;
-    
-    const signFieldUser = getField("signedBy");
-    const signFieldDate = getField("signedAt");
-
-    // Save name and date to Firebase
-    await update(ref(db, `students/${studentId}`), {
-      [signFieldUser]: user.name,
-      [signFieldDate]: new Date().toISOString(),
-    });
+    try {
+      await update(ref(db, `students/${studentId}`), {
+        [getField("signedBy")]: user.name || user.email || "Parent",
+        [getField("signedAt")]: new Date().toISOString(),
+      });
+    } catch (error) {
+      alert("Failed to sign.");
+    }
   }
 
-  // Allow teacher to remove sign
   async function handleUnsign(studentId) {
-    if (!window.confirm("Are you sure you want to remove this parent signature?")) return;
-    
-    const signFieldUser = getField("signedBy");
-    const signFieldDate = getField("signedAt");
-
-    // Remove signature
+    if (!window.confirm("Remove signature?")) return;
     await update(ref(db, `students/${studentId}`), {
-      [signFieldUser]: null,
-      [signFieldDate]: null,
+      [getField("signedBy")]: null,
+      [getField("signedAt")]: null,
     });
   }
 
-  // Save main table edits
   async function handleSaveMain(id) {
     await update(ref(db, `students/${id}`), edits[id]);
     const newEdits = { ...edits };
     delete newEdits[id];
     setEdits(newEdits);
-    alert("Main report saved!");
+    alert("Saved successfully!");
   }
 
-  // Save detailed subject scores from Modal
   async function handleSaveDetails() {
     if (!selectedStudent) return;
-    
     const s = edits[selectedStudent.id] || {};
 <<<<<<< Updated upstream
     const original = students.find(st => st.id === selectedStudent.id);
     
-    const getVal = (key) => {
-        const val = s[key] !== undefined ? s[key] : original[key];
-        return Number(val || 0);
-    };
+    const getVal = (key) => Number((s[key] !== undefined ? s[key] : original[key]) || 0);
 
     const bm = getVal(getField("subj_bm"));
     const eng = getVal(getField("subj_english"));
     const math = getVal(getField("subj_math"));
     const sci = getVal(getField("subj_science"));
-=======
-    const original = students.find((st) => st.id === selectedStudent.id);
-
-    const getVal = (key) => Number((s[key] !== undefined ? s[key] : original?.[key]) || 0);
-
-    const newTotalScore =
-      getVal(getField("subj_bm")) +
-      getVal(getField("subj_english")) +
-      getVal(getField("subj_math")) +
-      getVal(getField("subj_science")) +
-      getVal(getField("subj_sejarah")) +
-      getVal(getField("subj_geografi"));
->>>>>>> Stashed changes
 
     // Calculate TOTAL SCORE
     const newTotalScore = bm + eng + math + sci;
 
     // Update Firebase with subjects AND new Total Score
     await update(ref(db, `students/${selectedStudent.id}`), {
-<<<<<<< Updated upstream
         ...edits[selectedStudent.id],
         [getField("total_score")]: newTotalScore
-=======
-      ...edits[selectedStudent.id],
-      [getField("total_score")]: newTotalScore,
->>>>>>> Stashed changes
     });
 
-    // Clear edits
     const newEdits = { ...edits };
     delete newEdits[selectedStudent.id];
     setEdits(newEdits);
-    
     setSelectedStudent(null);
-    alert("Details saved & Ranking updated!");
   }
 
   const handleEditChange = (id, field, value) => {
-<<<<<<< Updated upstream
     // Validation
     if (!field.includes('behavior') && !field.includes('signed')) {
         const num = Number(value);
         if (num < 0 || num > 100) return; 
     }
-
     const dbKey = field.startsWith('t1_') || field.startsWith('t2_') ? field : getField(field);
-
     setEdits(prev => ({
 =======
     const num = Number(value);
@@ -361,206 +278,349 @@ export default function Reports() {
     }));
   };
 
-<<<<<<< Updated upstream
   // --- RENDER HELPERS ---
   const getValue = (studentId, baseField) => {
       const key = getField(baseField);
       const studentEdits = edits[studentId];
       const studentOriginal = students.find(s => s.id === studentId);
       if (!studentOriginal) return '';
-      
-      return (studentEdits && studentEdits[key] !== undefined) 
-        ? studentEdits[key] 
-        : (studentOriginal[key] || '');
+      return (studentEdits && studentEdits[key] !== undefined) ? studentEdits[key] : (studentOriginal[key] || '');
   };
 
-  // --- FILTERING ---
-  if (loading) return <div className="p-6">Loading...</div>;
+  // --- RENDERING ---
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-indigo-600 font-bold animate-pulse">Loading Reports...</div>;
 
-  // 1. First, get the list allowed by User Role
-  let filteredList = [];
-  if (user.role === 'parent') {
-    filteredList = students.filter(s => s.parentId === user.uid);
-  } else if (user.role === 'teacher') {
-    // FIXED TYPO: changed .filters to .filter
-    filteredList = students.filter(s => s.class === user.class);
-  } else {
-    filteredList = students;
+  // 1. DASHBOARD MODE (Only for Admin when no year is selected)
+  if (user.role === 'admin' && !selectedYear) {
+      return (
+        <div className="min-h-screen bg-slate-50/50">
+             <div className="absolute top-0 left-0 w-full h-72 bg-gradient-to-r from-indigo-700 to-violet-700 -z-10 shadow-lg"></div>
+             <div className="max-w-6xl mx-auto px-6 pt-16">
+                 <div className="text-center mb-16">
+                     <h1 className="text-4xl md:text-5xl font-black text-black tracking-tight drop-shadow-lg mb-3">Academic Dashboard</h1>
+                     <p className="text-indigo-800 font-medium text-lg bg-black/10 inline-block px-4 py-1 rounded-full backdrop-blur-sm">Select a Year Level to manage student reports</p>
+                 </div>
+
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                     {[1, 2, 3, 4, 5, 6].map(year => {
+                         const count = getYearCount(year);
+                         return (
+                             <button 
+                                key={year}
+                                onClick={() => setSelectedYear(year.toString())}
+                                className="group relative bg-white rounded-3xl p-8 shadow-xl shadow-slate-200 hover:shadow-2xl hover:shadow-indigo-200/50 hover:-translate-y-1 transition-all duration-300 border border-slate-100 overflow-hidden text-left"
+                             >
+                                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 group-hover:bg-indigo-100 transition-colors"></div>
+                                 <div className="relative z-10">
+                                     <div className="flex justify-between items-start mb-4">
+                                         <span className="text-sm font-bold text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">Year Level</span>
+                                         <div className="bg-slate-100 p-2 rounded-lg text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                         </div>
+                                     </div>
+                                     <h2 className="text-5xl font-black text-slate-800 mb-2">{year}</h2>
+                                     <div className="flex items-center text-slate-500 font-medium group-hover:text-indigo-600 transition-colors">
+                                         <UsersIcon />
+                                         <span className="ml-2">{count} Students</span>
+                                     </div>
+                                 </div>
+                             </button>
+                         );
+                     })}
+                 </div>
+             </div>
+        </div>
+      );
   }
 
-  // 2. Filter by Year (if not "All")
-  if (selectedYear !== "All") {
-    filteredList = filteredList.filter(s => s.class && s.class.startsWith(selectedYear));
+  // 2. LIST MODE (Standard View)
+  let viewList = user.role === 'parent' ? students.filter(s => s.parentId === user.uid) 
+               : user.role === 'teacher' ? students.filter(s => s.class === user.class) 
+               : students;
+
+  if (user.role === 'admin') {
+      const distinctClasses = [...new Set(students.map(s => s.class).filter(Boolean))].sort();
+      var availableClasses = selectedYear ? distinctClasses.filter(c => c.startsWith(selectedYear)) : distinctClasses;
+      
+      if (selectedYear) viewList = viewList.filter(s => s.class && s.class.startsWith(selectedYear));
+      if (selectedClass) viewList = viewList.filter(s => s.class === selectedClass);
   }
 
-  // 3. Then, filter that list by the Search Term
-  const viewList = filteredList.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  viewList = viewList.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase())));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto relative">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-slate-800">Academic Reports</h1>
+    <div className="min-h-screen bg-slate-50/50 pb-20">
+      {/* --- DECORATIVE BACKGROUND --- */}
+      <div className="absolute top-0 left-0 w-full h-72 bg-gradient-to-r from-indigo-700 to-violet-700 -z-10 shadow-lg"></div>
+
+      <div className="max-w-7xl mx-auto px-6 pt-12">
         
-        <div className="bg-slate-200 p-1 rounded-lg flex gap-1">
-            <button onClick={() => setCurrentTerm(1)} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${currentTerm === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Term 1</button>
-            <button onClick={() => setCurrentTerm(2)} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${currentTerm === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Term 2</button>
+        {/* --- HEADER --- */}
+        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
+            
+            {/* BACK BUTTON (High Contrast) */}
+            {user.role === 'admin' && (
+                <button 
+                    onClick={() => { setSelectedYear(""); setSelectedClass(""); setSearchTerm(""); }}
+                    className="group flex items-center gap-2 bg-white text-indigo-900 px-5 py-3 rounded-full shadow-lg shadow-indigo-900/20 hover:bg-indigo-50 hover:scale-105 transition-all duration-200 border border-white/50 w-fit"
+                >
+                    <ArrowLeftIcon className="w-5 h-5 text-indigo-700 group-hover:-translate-x-1 transition-transform stroke-2" />
+                    <span className="font-extrabold text-sm tracking-wide">Back to Dashboard</span>
+                </button>
+            )}
+
+            <div>
+                <h1 className="text-4xl md:text-5xl font-black text-black tracking-tight drop-shadow-md">
+                    {user.role === 'admin' ? `Year ${selectedYear} Reports` : 'Academic Reports'}
+                </h1>
+                
+                {/* SUBTITLE (High Contrast Pill) */}
+                <p className="text-black-50 mt-3 font-semibold bg-white/10 inline-block px-4 py-1.5 rounded-full backdrop-blur-md border border-white/20 shadow-sm">
+                  {user.role === 'teacher' 
+                    ? `Welcome, ${user.name || 'Teacher'} • Class ${user.class}` 
+                    : user.role === 'admin' 
+                      ? `Welcome, ${user.name || 'Admin'} • Manage Performance` 
+                      : `Welcome, ${user.name || 'Parent'}`
+                  }
+                </p>
+            </div>
+          </div>
+          
+          {/* Term Switcher */}
+          <div className="bg-white/10 p-1.5 rounded-xl backdrop-blur-md flex shadow-inner border border-white/20">
+            {[1, 2].map(term => (
+              <button 
+                key={term}
+                onClick={() => setCurrentTerm(term)} 
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
+                  currentTerm === term 
+                  ? 'bg-white text-indigo-700 shadow-lg scale-105' 
+                  : 'text-indigo-100 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Term {term}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-       {/* --- TOOLBAR (Search & Year Filter) --- */}
-      {(user.role === 'admin' || user.role === 'teacher') && (
-        <div className="mb-4 flex gap-4">
-          <input 
-            type="text"
-            placeholder="Search by student name or class..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 max-w-sm px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
+       {/* --- CONTROL BAR --- */}
+       <div className="bg-white rounded-2xl p-5 shadow-xl shadow-slate-200/50 mb-8 border border-slate-100 flex flex-col md:flex-row gap-4 items-center relative z-10">
+          <div className="flex items-center gap-3 w-full md:w-auto flex-1">
+            <div className="relative w-full">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <SearchIcon />
+              </div>
+              <input 
+                type="text"
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500/20 text-slate-700 placeholder-slate-400 font-medium transition-all"
+              />
+            </div>
+          </div>
 
-          <select 
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-slate-700 font-medium"
-          >
-            <option value="All">All Years</option>
-            <option value="1">Year 1</option>
-            <option value="2">Year 2</option>
-            <option value="3">Year 3</option>
-            <option value="4">Year 4</option>
-            <option value="5">Year 5</option>
-            <option value="6">Year 6</option>
-          </select>
-        </div>
-      )}
+          {user.role === 'admin' && (
+             <div className="flex gap-3 w-full md:w-auto">
+               <div className="relative w-full md:w-auto">
+                 <FilterIcon className="absolute left-3 top-3.5 z-10" />
+                 <select 
+                   value={selectedClass}
+                   onChange={(e) => setSelectedClass(e.target.value)}
+                   className="w-full md:w-auto pl-10 pr-8 py-3 bg-slate-50 border-none rounded-xl font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer hover:bg-slate-100 transition-colors appearance-none min-w-[180px]"
+                 >
+                   <option value="">All Classes</option>
+                   {availableClasses?.map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+               </div>
+             </div>
+          )}
+       </div>
 
-      <div className="bg-white rounded-xl shadow border overflow-hidden">
-        <table className="w-full text-left  border-collapse">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
-            <tr>
-              <th className="px-6 py-4">Student</th>
-              <th className="px-4 py-4 text-center w-35">Att. (%)</th>
-              <th className="px-4 py-4 text-center w-35">Co-Cu (%)</th>
-              <th className="px-4 py-4 text-center w-40">Rank In Class</th>
-              <th className="px-6 py-4 text-center w-40">Behavior</th>
-              <th className="px-6 py-4 text-center w-40">Status</th>
-              <th className="px-6 py-4 text-center w-30">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y text-sm">
-            {viewList.map(s => {
-              const attendance = getValue(s.id, 'attendance');
-              const cocu = getValue(s.id, 'cocu_attendance');
-              const behavior = getValue(s.id, 'behavior');
-              const signedBy = s[getField('signedBy')];
-              const signedAt = s[getField('signedAt')];
-              const isEditing = !!edits[s.id];
-              const { rank, total } = getStudentRank(s.id, s.class);
-
-              return (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium">
-                    {s.name}
-                    <div className="text-xs text-gray-400">{s.class}</div>
-                  </td>
-                  
-                  {(user.role === 'teacher' || user.role === 'admin') ? (
-                    <>
-                      <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={attendance} onChange={e => handleEditChange(s.id, 'attendance', e.target.value)} /></td>
-                      <td className="px-4 py-4 text-center"><input type="number" className="w-16 border rounded p-1 text-center" value={cocu} onChange={e => handleEditChange(s.id, 'cocu_attendance', e.target.value)} /></td>
-                      
-                      {/* RANK DISPLAY FOR TEACHERS */}
-                      <td className="px-4 py-4 text-center font-bold text-slate-700">
-                        {rank === "N/A" ? (
-                            <span className="text-gray-400 italic font-normal">N/A</span>
-                        ) : (
-                            <>#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></>
-                        )}
-                      </td>
-                      
-                      <td className="px-6 py-4 text-center">
-                        <select className="w-full border rounded p-1 text-sm bg-white" value={behavior} onChange={e => handleEditChange(s.id, 'behavior', e.target.value)}>
-                            <option value="">Select</option>
-                            <option value="Excellent">Excellent</option>
-                            <option value="Good">Good</option>
-                            <option value="Satisfactory">Satisfactory</option>
-                            <option value="Needs Improvement">Needs Improvement</option>
-                        </select>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-4 text-center">{attendance || '-'}%</td>
-                      <td className="px-4 py-4 text-center">{cocu || '-'}%</td>
-                      
-                      {/* RANK DISPLAY FOR PARENTS */}
-                      <td className="px-4 py-4 text-center font-bold text-blue-600">
-                        {rank === "N/A" ? (
-                            <span className="text-gray-400 italic font-normal">N/A</span>
-                        ) : (
-                            <>#{rank} <span className="text-xs text-gray-400 font-normal">/ {total}</span></>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 text-center"><span className="px-2 py-1 rounded-full bg-gray-100 text-xs">{behavior || 'Pending'}</span></td>
-                    </>
-                  )}
-
-                  {/* SIGNATURE COLUMN WITH DATE*/}
-                  <td className="px-6 py-4 text-center">
-                    {signedBy ? (
-                      <div className="flex flex-col items-center">
-                        <span className="text-green-600 text-[10px] bg-green-100 px-2 py-0.5 rounded font-bold uppercase mb-1">
-                          Signed
-                        </span>
-                        <span className="text-xs font-semibold text-slate-700">
-                          {signedBy}
-                        </span>
-                        {signedAt && (
-                          <span className="text-[10px] text-gray-400">
-                            {new Date(signedAt).toLocaleDateString('en-GB')}
-                          </span>
-                        )}
-                        {(user.role === 'teacher' || user.role === 'admin') && (
-                            <button 
-                                onClick={() => handleUnsign(s.id)}
-                                className="mt-1 text-[10px] text-red-500 hover:text-red-700 hover:underline font-medium"
-                            >
-                                (Unsign)
-                            </button>
-                        )}
-                      </div>
+      {/* --- TABLE AREA --- */}
+      <div className="overflow-x-auto pb-10">
+        <table className="w-full text-left border-separate border-spacing-y-4">
+            <thead>
+              <tr className="text-slate-400 text-xs uppercase tracking-wider font-bold">
+                  <th className="px-6 pb-2">Student Info</th>
+                  <th className="px-4 pb-2 text-center w-32">Attendance</th>
+                  <th className="px-4 pb-2 text-center w-32">Co-Curriculum</th>
+                  <th className="px-4 pb-2 text-center w-32">Rankings</th>
+                  <th className="px-6 pb-2 text-center w-1/3">Performance Summary</th>
+                  <th className="px-6 pb-2 text-center w-32">Status</th>
+                  <th className="px-6 pb-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+            {viewList.length > 0 ? (
+                viewList.map(s => {
+                const attendance = getValue(s.id, 'attendance');
+                const cocu = getValue(s.id, 'cocu_attendance');
+                const strength = getValue(s.id, 'strength'); 
+                const weakness = getValue(s.id, 'weakness');  
+                const signedBy = s[getField('signedBy')];
+                const signedAt = s[getField('signedAt')];
+                const isEditing = !!edits[s.id];
+                const { classRank, classTotal, yearRank, yearTotal } = getStudentRank(s.id, s.class);
+                
+                return (
+                    <tr key={s.id} className="bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl group">
+                    <td className="px-6 py-5 rounded-l-2xl border-l-4 border-transparent hover:border-indigo-500 transition-colors">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center font-bold text-lg shadow-sm border border-indigo-50">
+                                {s.name.charAt(0)}
+                            </div>
+                            <div>
+                                <div className="font-bold text-slate-800 text-base">{s.name}</div>
+                                <div className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md inline-block mt-1">{s.class}</div>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    {(user.role === 'teacher' || user.role === 'admin') ? (
+                        <>
+                        <td className="px-4 py-5 text-center">
+                            <input type="number" placeholder="0" className="w-16 bg-slate-50 border-none rounded-lg p-2 text-center font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500" value={attendance} onChange={e => handleEditChange(s.id, 'attendance', e.target.value)} />
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                            <input type="number" placeholder="0" className="w-16 bg-slate-50 border-none rounded-lg p-2 text-center font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500" value={cocu} onChange={e => handleEditChange(s.id, 'cocu_attendance', e.target.value)} />
+                        </td>
+                        
+                        <td className="px-4 py-5 text-center">
+                             {classRank !== "N/A" ? (
+                                <div className="flex flex-col gap-1 items-center justify-center">
+                                    <div className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md w-full whitespace-nowrap">
+                                        Class: #{classRank} <span className="text-slate-400 font-normal">/{classTotal}</span>
+                                    </div>
+                                    <div className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md w-full whitespace-nowrap border border-indigo-100">
+                                        Year: #{yearRank} <span className="text-indigo-400 font-normal">/{yearTotal}</span>
+                                    </div>
+                                </div>
+                            ) : <span className="text-slate-300 text-2xl">-</span>}
+                        </td>
+                        
+                        <td className="px-4 py-5">
+                            <div className="flex flex-col gap-3">
+                                <div className="relative">
+                                    <span className="absolute left-3 top-3 text-emerald-500"><StarIcon/></span>
+                                    <textarea 
+                                        placeholder="Highlights & Strengths..." 
+                                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
+                                        rows="2" 
+                                        value={strength} 
+                                        onChange={e => handleEditChange(s.id, 'strength', e.target.value)} 
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-3 text-amber-500"><TargetIcon/></span>
+                                    <textarea 
+                                        placeholder="Areas for Improvement..." 
+                                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none transition-all placeholder:text-slate-400 min-h-[60px]" 
+                                        rows="2" 
+                                        value={weakness} 
+                                        onChange={e => handleEditChange(s.id, 'weakness', e.target.value)} 
+                                    />
+                                </div>
+                            </div>
+                        </td>
+                        </>
                     ) : (
-                      <span className="text-gray-400 text-xs italic">Pending</span>
+                        <>
+                        <td className="px-4 py-5 text-center">
+                            <div className="font-bold text-slate-700">{attendance || 0}%</div>
+                            <ProgressBar value={attendance} colorClass="bg-emerald-500" />
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                            <div className="font-bold text-slate-700">{cocu || 0}%</div>
+                            <ProgressBar value={cocu} colorClass="bg-blue-500" />
+                        </td>
+                        
+                        <td className="px-4 py-5 text-center">
+                            {classRank !== "N/A" ? (
+                                <div className="flex flex-col gap-1.5 items-center">
+                                    <div className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold w-full justify-center ${classRank <= 3 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}`}>
+                                        {classRank <= 3 && <TrophyIcon />} Class: #{classRank}
+                                    </div>
+                                    <div className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded w-full border border-indigo-100">
+                                        Batch: #{yearRank}
+                                    </div>
+                                </div>
+                            ) : <span>-</span>}
+                        </td>
+
+                        <td className="px-6 py-5 align-top">
+                            <div className="flex flex-col gap-3">
+                                {/* Strength Card */}
+                                <div className="relative group p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 shadow-sm hover:shadow-md transition-all">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="p-1 rounded-full bg-emerald-100 text-emerald-600 shadow-sm"><StarIcon/></div>
+                                        <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">Strengths</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 leading-relaxed font-medium pl-1">
+                                        {strength || <span className="italic text-slate-400 font-normal">No specific comments recorded.</span>}
+                                    </p>
+                                </div>
+
+                                {/* Weakness Card */}
+                                <div className="relative group p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100/50 shadow-sm hover:shadow-md transition-all">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="p-1 rounded-full bg-amber-100 text-amber-600 shadow-sm"><TargetIcon/></div>
+                                        <span className="text-[10px] uppercase font-bold text-amber-700 tracking-wider">Areas to Improve</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 leading-relaxed font-medium pl-1">
+                                        {weakness || <span className="italic text-slate-400 font-normal">No specific comments recorded.</span>}
+                                    </p>
+                                </div>
+                            </div>
+                        </td>
+                        </>
                     )}
-                  </td>
-                  
-                  <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                    {/* View Details Button */}
-                    <button 
-                        onClick={() => setSelectedStudent(s)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-semibold border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded transition"
-                    >
-                        View Details
-                    </button>
+
+                    <td className="px-6 py-5 text-center">
+                        {signedBy ? (
+                        <div className="flex flex-col items-center">
+                            <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide flex items-center mb-1 border border-emerald-200 shadow-sm">
+                                <CheckBadgeIcon /> Signed
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-medium">{new Date(signedAt).toLocaleDateString()}</span>
+                            {(user.role === 'teacher' || user.role === 'admin') && (
+                                <button onClick={() => handleUnsign(s.id)} className="text-[10px] text-red-400 hover:text-red-600 mt-1 underline decoration-dashed">Revoke</button>
+                            )}
+                        </div>
+                        ) : (
+                            <span className="bg-slate-100 text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-slate-200">Pending</span>
+                        )}
+                    </td>
                     
-                    {/* Teacher & Admin : Save Button */}
-                    {(user.role === 'teacher' || user.role === 'admin') && isEditing && (
-                      <button onClick={()=>handleSaveMain(s.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs">Save</button>
-                    )}
-                    
-                    {/* Parent: Sign Button */}
-                    {user.role === 'parent' && !signedBy && (
-                      <button onClick={()=>handleSign(s.id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs">Sign</button>
-                    )}
-                  </td>
+                    <td className="px-6 py-5 text-right rounded-r-2xl">
+                        <div className="flex flex-col gap-2 items-end">
+                            <button onClick={() => setSelectedStudent(s)} className="text-indigo-600 hover:bg-indigo-50 border border-indigo-200 px-4 py-2 rounded-lg text-xs font-bold transition-all w-24 shadow-sm hover:shadow-md">
+                                Details
+                            </button>
+                            {(user.role === 'teacher' || user.role === 'admin') && isEditing && (
+                            <button onClick={()=>handleSaveMain(s.id)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold w-24 shadow-md hover:bg-indigo-700 transition-all animate-pulse">Save</button>
+                            )}
+                            {user.role === 'parent' && !signedBy && (
+                            <button onClick={()=>handleSign(s.id)} className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold w-24 shadow-md hover:bg-emerald-600 transition-all">Sign Report</button>
+                            )}
+                        </div>
+                    </td>
+                    </tr>
+                );
+                })
+            ) : (
+                <tr>
+                    <td colSpan="7" className="text-center py-20">
+                        <div className="inline-block p-6 rounded-full bg-white shadow-lg mb-4">
+                            <svg className="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <p className="text-slate-500 font-medium">No students found matching your filters.</p>
+                    </td>
                 </tr>
-              );
-            })}
-          </tbody>
+            )}
+            </tbody>
         </table>
 =======
   // 1. GENERATE TEMPLATE FUNCTION
@@ -1121,9 +1181,10 @@ export default function Reports() {
 >>>>>>> Stashed changes
       </div>
 
+      </div>
+
       {/* --- DETAILS MODAL --- */}
       {selectedStudent && (
-<<<<<<< Updated upstream
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-slate-100 px-6 py-4 border-b flex justify-between items-center">
@@ -1131,28 +1192,32 @@ export default function Reports() {
                     <h2 className="text-lg font-bold text-slate-800">{selectedStudent.name}</h2>
                     <p className="text-xs text-slate-500 uppercase font-semibold">Term {currentTerm} Result Details</p>
                 </div>
-                <button onClick={() => setSelectedStudent(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+                <button onClick={() => setSelectedStudent(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all relative z-10">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <div className="p-6 space-y-6">
-                
-                {/* Core Subjects Grid */}
+            {/* Modal Body (Scrollable) */}
+            <div className="p-8 space-y-8 bg-slate-50 overflow-y-auto">
+                {/* Score Cards Grid */}
                 <div>
-                    <h3 className="text-sm font-bold text-slate-700 mb-3 border-b pb-2">Core Subjects</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Subject Breakdown</h3>
+                        {user.role !== 'parent' && <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-1 rounded font-semibold">Editing Mode</span>}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
-                            { label: "Bahasa Melayu (%)", key: "subj_bm" },
-                            { label: "English (%)", key: "subj_english" },
-                            { label: "Mathematics (%)", key: "subj_math" },
-                            { label: "Science (%)", key: "subj_science" }
+                            { label: "Bahasa Melayu", key: "subj_bm", icon: "📖" },
+                            { label: "English", key: "subj_english", icon: "🔤" },
+                            { label: "Mathematics", key: "subj_math", icon: "📐" },
+                            { label: "Science", key: "subj_science", icon: "🧬" },
+                            { label: "Sejarah", key: "subj_sejarah", icon: "🏛️" },
+                            { label: "Geografi", key: "subj_geografi", icon: "🌍" }
                         ].map((subj) => {
-    const val = getValue(selectedStudent.id, subj.key);
-    const grade = getLetterGrade(val || 0);
-    
-    // Determine Color based on Grade
-    const gradeColor = grade === 'A' ? 'text-green-600' : 
-                       grade === 'B' ? 'text-blue-600' : 
-                       grade === 'F' ? 'text-red-600' : 'text-slate-600';
+                            const val = getValue(selectedStudent.id, subj.key);
+                            const grade = getLetterGrade(val || 0);
+                            const gradeColor = grade === 'A' ? 'bg-green-100 text-green-700 border-green-200' : grade === 'B' ? 'bg-blue-100 text-blue-700 border-blue-200' : grade === 'F' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200';
 
     return (
         <div key={subj.key} className="flex flex-col">
@@ -1173,112 +1238,9 @@ export default function Reports() {
         </div>
     );
 })}
-=======
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-6 flex justify-between items-start relative shrink-0">
-              <div className="absolute top-0 right-0 p-10 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-              <div className="relative z-10">
-                <h2 className="text-2xl font-black text-white tracking-tight">{selectedStudent.name}</h2>
-                <p className="text-indigo-100 font-medium mt-1">Detailed Academic Performance • Term {currentTerm}</p>
-              </div>
-              <button
-                onClick={() => setSelectedStudent(null)}
-                className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all relative z-10"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-8 space-y-8 bg-slate-50 overflow-y-auto">
-              {/* Attendance & Co-Cu Input */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                    <CalendarIcon /> Attendance & Activity
-                  </h3>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Attendance */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
-                      School Attendance (Max {TOTAL_SCHOOL_DAYS})
-                    </label>
-
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max={TOTAL_SCHOOL_DAYS}
-                        disabled={user.role !== "teacher" && user.role !== "admin"}
-                        value={getValue(selectedStudent.id, "attendance_days")}
-                        onChange={(e) => handleEditChange(selectedStudent.id, "attendance_days", e.target.value)}
-                        className="flex-1 font-black text-2xl text-slate-800 bg-white p-2 rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-center"
-                        placeholder="0"
-                      />
-                      <div className="text-sm font-bold text-slate-400">/ {TOTAL_SCHOOL_DAYS}</div>
->>>>>>> Stashed changes
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-100">
-                      <span className="text-xs font-semibold text-slate-400">Attendance %</span>
-                      <span
-                        className={`text-sm font-black ${
-                          (Number(getValue(selectedStudent.id, "attendance_days") || 0) / TOTAL_SCHOOL_DAYS) * 100 < 80
-                            ? "text-red-500"
-                            : "text-emerald-500"
-                        }`}
-                      >
-                        {Math.round((Number(getValue(selectedStudent.id, "attendance_days") || 0) / TOTAL_SCHOOL_DAYS) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Co-Curriculum */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
-                      Co-Curriculum (Max {TOTAL_COCU_DAYS})
-                    </label>
-
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max={TOTAL_COCU_DAYS}
-                        disabled={user.role !== "teacher" && user.role !== "admin"}
-                        value={getValue(selectedStudent.id, "cocu_days")}
-                        onChange={(e) => handleEditChange(selectedStudent.id, "cocu_days", e.target.value)}
-                        className="flex-1 font-black text-2xl text-slate-800 bg-white p-2 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-center"
-                        placeholder="0"
-                      />
-                      <div className="text-sm font-bold text-slate-400">/ {TOTAL_COCU_DAYS}</div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-100">
-                      <span className="text-xs font-semibold text-slate-400">Participation %</span>
-                      <span className="text-sm font-black text-blue-500">
-                        {Math.round((Number(getValue(selectedStudent.id, "cocu_days") || 0) / TOTAL_COCU_DAYS) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Subject Breakdown */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Subject Breakdown</h3>
-                  {user.role !== "parent" && (
-                    <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-1 rounded font-semibold">Editing Mode</span>
-                  )}
-                </div>
-
-<<<<<<< Updated upstream
                 {/* Total Score Summary */}
                 <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center border border-blue-100">
                     <div>
@@ -1294,28 +1256,52 @@ export default function Reports() {
                            return bm + eng + math + sci; 
                         })()} <span className="text-sm font-normal text-blue-400">/ 400</span>
                     </div>
-                </div>
-                
-                {/* RANK DISPLAY IN MODAL */}
-                <div className="flex justify-between items-center text-sm text-gray-600 mt-2">
-                    <span>Class Rank Position:</span>
-                    {(() => {
-                        const { rank, total } = getStudentRank(selectedStudent.id, selectedStudent.class);
-                        return rank === "N/A" ? (
-                            <span className="font-bold text-gray-400 italic">N/A</span>
-                        ) : (
-                            <span className="font-bold text-slate-800">#{rank} <span className="text-xs font-normal text-gray-400">/ {total}</span></span>
-                        );
-                    })()}
+
+                    {/* Rank Cards Container */}
+                    <div className="flex-1 flex gap-3">
+                         {(() => {
+                            const { classRank, classTotal, yearRank, yearTotal } = getStudentRank(selectedStudent.id, selectedStudent.class);
+                            
+                            return (
+                                <>
+                                {/* Class Rank Card */}
+                                <div className="flex-1 bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-center shadow-sm">
+                                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-wide mb-1">Class Position</p>
+                                    {classRank === "N/A" ? (
+                                        <span className="text-xl font-bold text-slate-300 italic">N/A</span>
+                                    ) : (
+                                        <div className="flex flex-col">
+                                            <span className="text-3xl font-black text-slate-800">#{classRank}</span>
+                                            <span className="text-xs font-semibold text-slate-400">Top {Math.round((classRank/classTotal)*100)}%</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Year Rank Card */}
+                                <div className="flex-1 bg-white border border-indigo-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 p-8 bg-indigo-50 rounded-full -mr-4 -mt-4"></div>
+                                    <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-wide mb-1 relative z-10">Year Position</p>
+                                    {yearRank === "N/A" ? (
+                                        <span className="text-xl font-bold text-indigo-200 italic relative z-10">N/A</span>
+                                    ) : (
+                                        <div className="flex flex-col relative z-10">
+                                            <span className="text-3xl font-black text-indigo-600">#{yearRank}</span>
+                                            <span className="text-xs font-semibold text-indigo-400">of {yearTotal} Students</span>
+                                        </div>
+                                    )}
+                                </div>
+                                </>
+                            );
+                        })()}
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 border-t flex justify-end gap-3">
-                <button onClick={() => setSelectedStudent(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Close</button>
+            {/* Modal Footer (Fixed) */}
+            <div className="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+                <button onClick={() => setSelectedStudent(null)} className="px-6 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 transition-colors">Close</button>
                 {(user.role === 'teacher' || user.role === 'admin') && (
-                    <button onClick={handleSaveDetails} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium shadow-sm transition">
-                        Save Details
-                    </button>
+                    <button onClick={handleSaveDetails} className="px-6 py-2.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all">Save Changes</button>
                 )}
 =======
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
