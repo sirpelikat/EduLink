@@ -68,20 +68,62 @@ export default function Reports() {
     const student = students.find(s => s.id === studentId);
     if (!student || !studentClass) return { classRank: "N/A", classTotal: 0, yearRank: "N/A", yearTotal: 0 };
 
-    const scoreKey = getField("total_score");
-    const myScore = Number(student[scoreKey] || 0);
+    const term = `t${currentTerm}_`;
+    const subjectKeys = ["subj_bm", "subj_english", "subj_math", "subj_science", "subj_sejarah", "subj_geografi"];
 
-    if (myScore === 0) return { classRank: "N/A", classTotal: 0, yearRank: "N/A", yearTotal: 0 };
+    // Helper to calculate Grade Points and Total Score
+    const calculatePerformance = (s) => {
+      let totalGradePoints = 0;
+      let rawTotal = 0;
+      let count = 0;
+
+      subjectKeys.forEach(key => {
+        const mark = Number(s[term + key] || 0);
+        rawTotal += mark;
+        
+        // Internal Weighting: A=1 (Best), F=6 (Worst)
+        if (mark >= 80) totalGradePoints += 1;
+        else if (mark >= 70) totalGradePoints += 2;
+        else if (mark >= 60) totalGradePoints += 3;
+        else if (mark >= 50) totalGradePoints += 4;
+        else if (mark >= 40) totalGradePoints += 5;
+        else totalGradePoints += 6;
+        
+        count++;
+      });
+
+      return {
+        avgGP: totalGradePoints / count, // Lower is better (e.g., 1.0 vs 2.5)
+        totalScore: rawTotal // Higher is better (for ties)
+      };
+    };
+
+    const myPerf = calculatePerformance(student);
+    // If student has no marks at all, don't rank them
+    if (myPerf.totalScore === 0) return { classRank: "N/A", classTotal: 0, yearRank: "N/A", yearTotal: 0 };
+
+    const rankSorter = (a, b) => {
+      const perfA = calculatePerformance(a);
+      const perfB = calculatePerformance(b);
+
+      // 1. Primary Sort: Grade Point Average (Quality)
+      // We use a small epsilon for float comparison safety
+      if (Math.abs(perfA.avgGP - perfB.avgGP) > 0.0001) {
+        return perfA.avgGP - perfB.avgGP; 
+      }
+      // 2. Secondary Sort: Raw Marks (Tie-breaker)
+      return perfB.totalScore - perfA.totalScore;
+    };
 
     // 1. Calculate Class Rank
     const classmates = students.filter(s => s.class === studentClass);
-    classmates.sort((a, b) => Number(b[scoreKey] || 0) - Number(a[scoreKey] || 0));
+    classmates.sort(rankSorter);
     const classRank = classmates.findIndex(s => s.id === studentId) + 1;
 
-    // 2. Calculate Year Rank (Assuming Year is the first char of class, e.g. "1 A" -> "1")
+    // 2. Calculate Year Rank 
     const yearPrefix = studentClass.toString().charAt(0); 
     const yearmates = students.filter(s => s.class && s.class.toString().startsWith(yearPrefix));
-    yearmates.sort((a, b) => Number(b[scoreKey] || 0) - Number(a[scoreKey] || 0));
+    yearmates.sort(rankSorter);
     const yearRank = yearmates.findIndex(s => s.id === studentId) + 1;
 
     return { 
@@ -149,7 +191,7 @@ export default function Reports() {
   }
 
   const handleEditChange = (id, field, value) => {
-    // UPDATED VALIDATION LOGIC
+    
     const num = Number(value);
     
     // 1. Attendance Days Validation
@@ -198,9 +240,7 @@ export default function Reports() {
                      {[1, 2, 3, 4, 5, 6].map(year => {
                          const count = getYearCount(year);
                          return (
-                             <button 
-                                key={year}
-                                onClick={() => setSelectedYear(year.toString())}
+                             <button key={year} onClick={() => setSelectedYear(year.toString())}
                                 className="group relative bg-white rounded-3xl p-8 shadow-xl shadow-slate-200 hover:shadow-2xl hover:shadow-indigo-200/50 hover:-translate-y-1 transition-all duration-300 border border-slate-100 overflow-hidden text-left"
                              >
                                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 group-hover:bg-indigo-100 transition-colors"></div>
@@ -239,7 +279,9 @@ export default function Reports() {
       if (selectedClass) viewList = viewList.filter(s => s.class === selectedClass);
   }
 
-  viewList = viewList.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase())));
+  viewList = viewList.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase())));
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
