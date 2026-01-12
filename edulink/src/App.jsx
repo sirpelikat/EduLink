@@ -186,8 +186,8 @@ export default function App() {
             </div>
           </div>
           <div className="flex gap-4">
-            <a href="#" className="text-slate-400 hover:text-slate-800"><Github size={20} /></a>
-            <a href="#" className="text-slate-400 hover:text-blue-600"><Linkedin size={20} /></a>
+            <a href="https://github.com/sirpelikat/EduLink" className="text-slate-400 hover:text-slate-800"><Github size={20} /></a>
+            <a href="https://www.linkedin.com/in/dannimiqhail/" className="text-slate-400 hover:text-blue-600"><Linkedin size={20} /></a>
           </div>
         </div>
       </footer>

@@ -105,7 +105,7 @@ export default function Announcements() {
 
   // 1. Role-Based Visibility
   if (user.role === 'admin') {
-    visiblePosts = announcements; // Admin sees all
+    visiblePosts = announcements.filter(a => a.target === 'All');
   } 
   else if (user.role === 'teacher') {
     // See Global + Own Class

@@ -49,7 +49,6 @@ export default function Dashboard() {
     const target = ann.target || 'All';
     const targetLower = target.toLowerCase();
 
-    if (user.role === 'admin') return true;
     if (target === 'All') return true;
 
     if (user.role === 'parent') {
