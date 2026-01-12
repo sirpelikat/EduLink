@@ -38,7 +38,7 @@ const Login = () => {
 
         // 3. Set user context and redirect
         setUser({ uid, email, ...profile });
-        nav('/dashboard'); 
+        nav('/EduLink/dashboard'); 
       } else {
         setError("Profile not found. Contact administrator.");
       }

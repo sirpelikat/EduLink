@@ -53,7 +53,8 @@ function Welcome() {
             EduLink bridges the gap between teachers, parents, and students with real-time insights, seamless communication, and automated reporting.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-             <Link to={user ? "/dashboard" : "/login"} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-xl shadow-blue-200 hover:-translate-y-1 text-center">
+             {/* UPDATED LINKS WITH /EduLink PREFIX */}
+             <Link to={user ? "/EduLink/dashboard" : "/EduLink/login"} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-xl shadow-blue-200 hover:-translate-y-1 text-center">
                {user ? "Go to Dashboard" : "Sign In to Portal"}
              </Link>
           </div>
@@ -85,7 +86,7 @@ export default function App() {
 
   async function handleLogout() {
     await logout();
-    navigate('/login');
+    navigate('/EduLink/login'); // UPDATED REDIRECT
     setIsMenuOpen(false); // Close menu on logout
   }
 
@@ -108,17 +109,18 @@ export default function App() {
             <nav className="hidden md:flex items-center gap-6">
               {user ? (
                 <>
-                  <Link to="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Dashboard</Link>
-                  <Link to="/reports" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Reports</Link>
-                  <Link to="/announcements" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Announcements</Link>
-                  <Link to="/wellbeing" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Well-being</Link>
-                  {user.role === 'admin' && <Link to="/admin" className="text-sm font-bold text-purple-600 hover:text-purple-800">Admin</Link>}
+                  {/* UPDATED LINKS WITH /EduLink PREFIX */}
+                  <Link to="/EduLink/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Dashboard</Link>
+                  <Link to="/EduLink/reports" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Reports</Link>
+                  <Link to="/EduLink/announcements" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Announcements</Link>
+                  <Link to="/EduLink/wellbeing" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Well-being</Link>
+                  {user.role === 'admin' && <Link to="/EduLink/admin" className="text-sm font-bold text-purple-600 hover:text-purple-800">Admin</Link>}
                   <div className="h-5 w-px bg-slate-200"></div>
-                  <Link to="/profile" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Profile</Link>
+                  <Link to="/EduLink/profile" className="text-sm font-semibold text-slate-600 hover:text-blue-600">Profile</Link>
                   <button onClick={handleLogout} className="text-sm font-semibold text-red-500 hover:text-red-700">Sign out</button>
                 </>
               ) : (
-                <Link to="/login" className="text-sm font-bold text-blue-600 hover:text-blue-800">Sign in</Link>
+                <Link to="/EduLink/login" className="text-sm font-bold text-blue-600 hover:text-blue-800">Sign in</Link>
               )}
             </nav>
 
@@ -137,17 +139,18 @@ export default function App() {
               <nav className="flex flex-col gap-4 mt-4 text-center">
                 {user ? (
                   <>
-                    <Link to="/dashboard" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Dashboard</Link>
-                    <Link to="/reports" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Reports</Link>
-                    <Link to="/announcements" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Announcements</Link>
-                    <Link to="/wellbeing" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Well-being</Link>
-                    {user.role === 'admin' && <Link to="/admin" className="text-purple-600 font-bold py-2 hover:bg-purple-50 rounded-lg">Admin Panel</Link>}
+                    {/* UPDATED LINKS WITH /EduLink PREFIX */}
+                    <Link to="/EduLink/dashboard" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Dashboard</Link>
+                    <Link to="/EduLink/reports" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Reports</Link>
+                    <Link to="/EduLink/announcements" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Announcements</Link>
+                    <Link to="/EduLink/wellbeing" className="text-slate-600 font-semibold py-2 hover:bg-slate-50 rounded-lg">Well-being</Link>
+                    {user.role === 'admin' && <Link to="/EduLink/admin" className="text-purple-600 font-bold py-2 hover:bg-purple-50 rounded-lg">Admin Panel</Link>}
                     <hr className="border-slate-100 my-2" />
-                    <Link to="/profile" className="text-slate-600 font-semibold py-2">My Profile</Link>
+                    <Link to="/EduLink/profile" className="text-slate-600 font-semibold py-2">My Profile</Link>
                     <button onClick={handleLogout} className="text-red-500 font-semibold py-2">Sign out</button>
                   </>
                 ) : (
-                  <Link to="/login" className="bg-blue-50 text-blue-600 font-bold py-3 rounded-xl">Sign in Portal</Link>
+                  <Link to="/EduLink/login" className="bg-blue-50 text-blue-600 font-bold py-3 rounded-xl">Sign in Portal</Link>
                 )}
               </nav>
             </div>
@@ -161,13 +164,14 @@ export default function App() {
           <Route path="/" element={<Navigate to="/EduLink" replace />} />
           <Route path="/EduLink" element={<Welcome />} />
           
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/announcements" element={<Announcements />} />
-          <Route path="/wellbeing" element={<Wellbeing />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* UPDATED ROUTES WITH /EduLink PREFIX */}
+          <Route path="/EduLink/dashboard" element={<Dashboard />} />
+          <Route path="/EduLink/login" element={<Login />} />
+          <Route path="/EduLink/reports" element={<Reports />} />
+          <Route path="/EduLink/announcements" element={<Announcements />} />
+          <Route path="/EduLink/wellbeing" element={<Wellbeing />} />
+          <Route path="/EduLink/admin" element={<Admin />} />
+          <Route path="/EduLink/profile" element={<Profile />} />
         </Routes>
       </main>
 

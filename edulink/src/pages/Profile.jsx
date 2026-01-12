@@ -2,15 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
 import { db, ref, update, onValue } from '../firebaseRTDB';
-import { User, Lock, Shield, Mail, Briefcase, ChevronDown, GraduationCap, Clock, Phone } from 'lucide-react';
-
-// --- CONSTANTS ---
-const FORMS = [1, 2, 3, 4, 5, 6]; 
-const CLASS_NAMES = ["Amanah", "Bestari", "Cerdik", "Dedikasi", "Efisien"];
-const CLASS_OPTIONS = FORMS.reduce((acc, form) => {
-  acc[`Year ${form}`] = CLASS_NAMES.map(name => `${form} ${name}`);
-  return acc;
-}, {});
+import { User, Lock, Shield, Mail, Briefcase, GraduationCap, Clock, Phone } from 'lucide-react';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -55,8 +47,8 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true); setProfileStatus('Saving...');
     try {
+      // Only update name and phone. Class is now managed by Admin only.
       const updates = { name, phone }; 
-      if (user.role === 'teacher') updates.class = className;
       
       await update(ref(db, `users/${user.uid}`), updates);
       setUser({ ...user, ...updates });
@@ -189,18 +181,18 @@ export default function Profile() {
               </div>
             </div>
 
+            {/* TEACHER CLASS - READ ONLY */}
             {user?.role === 'teacher' && (
               <div>
                 <label className={labelStyle}>Assigned Class</label>
                 <div className="relative">
                   <Briefcase size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                  <select className={`${inputStyle} appearance-none cursor-pointer`} value={className} onChange={e => setClassName(e.target.value)}>
-                    <option value="">Select a Class...</option>
-                    {Object.entries(CLASS_OPTIONS).map(([form, classes]) => (
-                      <optgroup key={form} label={form}>{classes.map(cls => <option key={cls} value={cls}>{cls}</option>)}</optgroup>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-4 top-4 text-slate-400 pointer-events-none" />
+                  <input 
+                    type="text" 
+                    disabled 
+                    value={className || 'No Class Assigned'} 
+                    className={`${inputStyle} opacity-60 cursor-not-allowed`}
+                  />
                 </div>
               </div>
             )}

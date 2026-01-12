@@ -74,7 +74,7 @@ export default function Dashboard() {
   }, [announcements.length]);
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/EduLink/login" replace />;
   }
 
   const nextSlide = () => setActiveIndex((curr) => (curr + 1) % announcements.length);
@@ -187,7 +187,7 @@ export default function Dashboard() {
         
         <div className="flex gap-3 w-full md:w-auto">
           {user.role === 'teacher' && (
-            <Link to="/reports" className="flex-1 md:flex-none justify-center items-center gap-2 bg-indigo-600 text-white px-4 py-3 md:py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 flex">
+            <Link to="/EduLink/reports" className="flex-1 md:flex-none justify-center items-center gap-2 bg-indigo-600 text-white px-4 py-3 md:py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 flex">
               <CheckCircle size={18} /> Manage Marks
             </Link>
           )}
@@ -277,7 +277,7 @@ export default function Dashboard() {
                               <p className="text-xs text-slate-400 font-mono">{s.class}</p>
                             </div>
                           </div>
-                          <Link to="/wellbeing" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100">
+                          <Link to="/EduLink/wellbeing" className="text-blue-600 bg-blue-50 p-2 rounded-lg hover:bg-blue-100">
                             <ArrowRight size={16}/>
                           </Link>
                         </div>
@@ -338,7 +338,7 @@ export default function Dashboard() {
               <Users size={18} className="text-blue-500"/> {user.role === 'parent' ? 'My Children' : 'Student List'}
             </h3>
             {user.role !== 'parent' && (
-              <Link to="/reports" className="text-xs text-blue-600 font-bold uppercase hover:underline">View All</Link>
+              <Link to="/EduLink/reports" className="text-xs text-blue-600 font-bold uppercase hover:underline">View All</Link>
             )}
           </div>
           <div className="overflow-y-auto overflow-x-auto flex-1 custom-scrollbar">
