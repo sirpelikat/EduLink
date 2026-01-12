@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react'
 import { db, ref, onValue, update } from '../firebaseRTDB'
 import { useAuth } from '../context/AuthContext'
 import { 
-  AlertCircle, ChevronDown, TrendingUp, TrendingDown, Minus, Search, X, 
-  AlertTriangle, CheckCircle, Phone, ListFilter, CheckSquare, Square, Clock, Undo2
-} from 'lucide-react' // Added Undo2 icon
+  AlertCircle, ChevronDown, Minus, Search, X, 
+  AlertTriangle, CheckCircle, Phone, ListFilter, Clock, Undo2
+} from 'lucide-react'
 import { 
   BarChart, Bar, Tooltip, ResponsiveContainer 
 } from 'recharts';
+
+// Define constants to match Reports.jsx
+const TOTAL_SCHOOL_DAYS = 120; 
+const TOTAL_COCU_DAYS = 12;
 
 export default function Wellbeing() {
   const { user } = useAuth();
@@ -29,12 +33,24 @@ export default function Wellbeing() {
       avgGrade: 0
     };
 
-    const att = Number(student[`${termPrefix}_attendance`] || 100);
-    const cocu = Number(student[`${termPrefix}_cocu_attendance`] || 100);
+    // 1. Calculate Attendance Percentage (Days -> %)
+    // Using the NEW data field: tX_attendance_days
+    const rawAtt = Number(student[`${termPrefix}_attendance_days`] || 0); 
+    const att = Math.round((rawAtt / TOTAL_SCHOOL_DAYS) * 100);
+
+    // 2. Co-Curriculum (Days -> %)
+    // Using the NEW data field: tX_cocu_days
+    const cocuDays = Number(student[`${termPrefix}_cocu_days`] || 0); 
+    const cocuPct = Math.round((cocuDays / TOTAL_COCU_DAYS) * 100);
     
+    // 3. Subjects (Updated to include Sejarah & Geografi)
     const subjects = {
-      'subj_bm': 'Bahasa Melayu', 'subj_english': 'English', 
-      'subj_math': 'Mathematics', 'subj_science': 'Science'
+      'subj_bm': 'Bahasa Melayu', 
+      'subj_english': 'English', 
+      'subj_math': 'Mathematics', 
+      'subj_science': 'Science',
+      'subj_sejarah': 'Sejarah',   
+      'subj_geografi': 'Geografi'  
     };
     
     let totalScore = 0;
@@ -42,25 +58,30 @@ export default function Wellbeing() {
 
     Object.entries(subjects).forEach(([key, label]) => {
       const val = student[`${termPrefix}_${key}`];
-      if (val !== undefined) {
+      if (val !== undefined && val !== "") {
         const score = Number(val);
         totalScore += score;
         count++;
-        if (score < 50) issues.failingSubjects.push({ subject: label, score, level: 'High' });
-        else if (score < 80) issues.failingSubjects.push({ subject: label, score, level: 'Low' });
+        if (score < 40) issues.failingSubjects.push({ subject: label, score, level: 'High' }); // Failed (F)
+        else if (score < 50) issues.failingSubjects.push({ subject: label, score, level: 'Low' }); // Near miss (E)
       }
     });
 
     issues.avgGrade = count > 0 ? Math.round(totalScore / count) : 0;
     
-    const isHigh = att < 50 || cocu < 50 || issues.failingSubjects.some(s => s.score < 50);
-    const isLow = !isHigh && (att < 80 || cocu < 80 || issues.failingSubjects.some(s => s.score < 80));
+    // 4. Determine Risk Priority
+    // High Risk: <80% Attendance OR <40 Marks in any subject
+    const isHigh = att < 80 || issues.failingSubjects.some(s => s.score < 40);
+    
+    // Low Risk: <90% Attendance OR <50 Marks in any subject (Warning zone)
+    const isLow = !isHigh && (att < 90 || issues.failingSubjects.some(s => s.score < 50));
 
     if (isHigh) issues.priority = 'High';
     else if (isLow) issues.priority = 'Low';
 
-    if (att < 80) issues.attendance = { value: att, level: att < 50 ? 'High' : 'Low' };
-    if (cocu < 80) issues.cocu = { value: cocu, level: cocu < 50 ? 'High' : 'Low' };
+    // Populate issue details if thresholds are met
+    if (att < 90) issues.attendance = { value: att, raw: rawAtt, level: att < 80 ? 'High' : 'Low' };
+    if (cocuPct < 50) issues.cocu = { value: cocuPct, level: 'High' }; // Assuming 50% is pass for CoCu
 
     return issues;
   };
@@ -89,6 +110,7 @@ export default function Wellbeing() {
         const t2 = analyzeTerm(s, 't2');
         
         let overallPriority = 'Normal';
+        // Priority logic: If either term is High -> High. Else if either is Low -> Low.
         if (t1.priority === 'High' || t2.priority === 'High') overallPriority = 'High';
         else if (t1.priority === 'Low' || t2.priority === 'Low') overallPriority = 'Low';
 
@@ -121,7 +143,7 @@ export default function Wellbeing() {
     } catch (error) { alert("Error updating status."); }
   };
 
-  // 2. Mark as Pending (Uncontact) - NEW
+  // 2. Mark as Pending (Uncontact)
   const markAsPending = async (student) => {
     try {
       await update(ref(db, `students/${student.id}`), {
@@ -145,7 +167,7 @@ export default function Wellbeing() {
   const allFiltered = alerts.filter(s => 
     !searchTerm.trim() || 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.class.toLowerCase().includes(searchTerm.toLowerCase())
+    (s.class && s.class.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const pendingList = allFiltered.filter(s => s.contactStatus !== 'contacted');
@@ -354,8 +376,8 @@ function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIc
     : (isHigh ? 'border-l-red-500' : 'border-l-amber-500');
 
   const chartData = [
-    { name: 'T1', Grade: t1.avgGrade, Attendance: t1.attendance?.value || 100 },
-    { name: 'T2', Grade: t2.avgGrade, Attendance: t2.attendance?.value || 100 },
+    { name: 'T1', Grade: t1.avgGrade, Attendance: t1.attendance?.value || 0 },
+    { name: 'T2', Grade: t2.avgGrade, Attendance: t2.attendance?.value || 0 },
   ];
 
   const btnStyles = {
@@ -371,7 +393,7 @@ function CompactStudentCard({ student, userRole, onAction, actionLabel, actionIc
         {/* STUDENT INFO */}
         <div className="flex-1 flex items-center gap-3 w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
            <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${isResolved ? 'bg-emerald-500' : (isHigh ? 'bg-red-500' : 'bg-amber-500')}`}>
-              {student.name.charAt(0)}
+              {student.name ? student.name.charAt(0) : '?'}
            </div>
            <div>
               <div className="flex items-center gap-2">
@@ -455,7 +477,15 @@ function TermDetailCompact({ name, data }) {
           <span className={`text-[10px] font-bold px-1.5 rounded uppercase ${data.priority==='High'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}`}>{data.priority} Risk</span>
        </div>
        <div className="space-y-1">
-          {data.attendance && <div className="flex justify-between text-xs"><span className="text-slate-500">Attendance</span><span className={`font-mono font-bold ${data.attendance.level==='High'?'text-red-600':'text-amber-600'}`}>{data.attendance.value}%</span></div>}
+          {data.attendance && (
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Attendance</span>
+              <span className={`font-mono font-bold ${data.attendance.level==='High'?'text-red-600':'text-amber-600'}`}>
+                {data.attendance.value}% 
+                <span className="text-[9px] text-slate-300 ml-1">({data.attendance.raw}/{TOTAL_SCHOOL_DAYS}d)</span>
+              </span>
+            </div>
+          )}
           {data.cocu && <div className="flex justify-between text-xs"><span className="text-slate-500">Co-Cu</span><span className={`font-mono font-bold ${data.cocu.level==='High'?'text-red-600':'text-amber-600'}`}>{data.cocu.value}%</span></div>}
           {data.failingSubjects.map((s, i) => <div key={i} className="flex justify-between text-xs"><span className="text-slate-500">{s.subject}</span><span className={`font-mono font-bold ${s.level==='High'?'text-red-600':'text-amber-600'}`}>{s.score}%</span></div>)}
        </div>
